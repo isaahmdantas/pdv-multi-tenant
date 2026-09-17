@@ -31,16 +31,16 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F1-01 | Next.js (App Router) | ⬜ | F0 | - | - | - |
-| F1-02 | TypeScript | ⬜ | F1-01 | - | - | - |
-| F1-03 | Tailwind CSS | ⬜ | F1-01 | - | - | - |
-| F1-04 | shadcn/ui | ⬜ | F1-03 | - | - | - |
-| F1-05 | Prisma | ⬜ | F1-01 | - | - | - |
-| F1-06 | PostgreSQL (db `pdv`) | ⬜ | F1-05 | - | - | - |
-| F1-07 | Environment/`.env` | ⬜ | F1-01 | - | - | - |
-| F1-08 | Lint | ⬜ | F1-02 | - | - | - |
-| F1-09 | Testes (Vitest) | ⬜ | F1-02 | - | - | - |
-| F1-10 | Arquitetura modular | ⬜ | F1-01 | - | - | - |
+| F1-01 | Next.js (App Router) | ✅ | F0 | `package.json`, `src/app/*` | `npm run build` | Next 16.3.5 (Turbopack) |
+| F1-02 | TypeScript | ✅ | F1-01 | `tsconfig.json` | `npm run typecheck` | strict: true, alias `@/*` |
+| F1-03 | Tailwind CSS | ✅ | F1-01 | `globals.css`, `postcss.config.mjs` | build ok | Tailwind v4 (@tailwindcss/postcss) |
+| F1-04 | shadcn/ui | ✅ | F1-03 | `components.json`, `src/components/ui/button.tsx`, `src/lib/utils.ts` | build ok | CLI shadcn 4.21, preset base-nova |
+| F1-05 | Prisma | ✅ | F1-01 | `prisma/schema.prisma`, `prisma.config.ts`, `src/generated/prisma` | `npx prisma generate` | Prisma 7.10.0, generator `prisma-client`, driver adapter `@prisma/adapter-pg`, url em `prisma.config.ts` |
+| F1-06 | PostgreSQL (db `pdv`) | ✅ | F1-05 | `scripts/check-db.ts`, `.env` | `tsx scripts/check-db.ts` SELECT 1 | db `pdv` criado; Postgres 18.4 local (Homebrew, 5432) |
+| F1-07 | Environment/`.env` | ✅ | F1-01 | `.env`, `.env.example` | app lê DATABASE_URL | `.env` gitignored, `.env.example` versionado |
+| F1-08 | Lint | ✅ | F1-02 | `eslint.config.mjs` | `npm run lint` | eslint-config-next (web-vitals + ts), ignora `src/generated` |
+| F1-09 | Testes (Vitest) | ✅ | F1-02 | `vitest.config.ts`, `src/test/*` | `npm test` | Vitest 4 + jsdom + testing-library; 1 teste smoke ✅ |
+| F1-10 | Arquitetura modular | ✅ | F1-01 | `src/lib/prisma.ts`, `src/test` | - | estrutura `src/app`, `src/lib` etc.; módulos por domínio nas próximas fases |
 
 ## FASE 2 — MULTI-TENANT
 

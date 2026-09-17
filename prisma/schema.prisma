@@ -1,0 +1,14 @@
+// Fase 1 — fundação.
+// Regras (ADR-0005): IDs cuid(), Decimal para money (nunca float),
+// sem enums nativos (String + union TS + Zod), sem extensões PG.
+// Modelos de negócio entram a partir da Fase 2 (multi-tenant).
+// Prisma 7: url fica em prisma.config.ts (datasource abaixo só declara provider).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

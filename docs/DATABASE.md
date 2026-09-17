@@ -126,5 +126,13 @@ Estratégia centralizada em `StockService`/`StockRepository`:
 ## 6. Conexão
 
 - Database: `pdv` no PostgreSQL local (porta 5432, instância Evolution existente —
-  apenas `CREATE DATABASE pdv`).
+  apenas `CREATE DATABASE pdv`). Ambiente local hoje: PostgreSQL 18.4 (Homebrew).
 - URL via `.env` (`DATABASE_URL=postgresql://...`).
+- **Prisma 7** (7.10.0):
+  - `datasource.url` não fica no `schema.prisma`; fica em `prisma.config.ts`
+    (`defineConfig({ datasource: { url: env("DATABASE_URL") } })`).
+  - Generator `prisma-client` (novo, rust-free) com `output = "../src/generated/prisma"`
+    (obrigatório; `prisma-client-js` está deprecated e será removido).
+  - Client em tempo de execução usa **driver adapter** `@prisma/adapter-pg` +
+    `pg` (`new PrismaClient({ adapter })`), instanciado em `src/lib/prisma.ts`
+    (singleton com hot-reload em dev).
