@@ -1,7 +1,8 @@
-// Fase 1 — fundação.
+// Fase 1/2 — fundação + multi-tenant.
 // Regras (ADR-0005): IDs cuid(), Decimal para money (nunca float),
 // sem enums nativos (String + union TS + Zod), sem extensões PG.
-// Modelos de negócio entram a partir da Fase 2 (multi-tenant).
+// Classificação de escopo: TenantScoped (tenantId), StoreScoped (tenantId+storeId),
+// itens-filho (tenantId). Ver docs/DATABASE.md §2.
 // Prisma 7: url fica em prisma.config.ts (datasource abaixo só declara provider).
 
 generator client {
@@ -11,4 +12,158 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stores           Store[]
+  users            User[]
+  roles            Role[]
+  permissions      Permission[]
+  userRoles        UserRole[]
+  userStores       UserStore[]
+  rolePermissions  RolePermission[]
+  auditLogs        AuditLog[]
+
+  @@index([slug])
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  code      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userStores UserStore[]
+  auditLogs  AuditLog[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  name         String
+  email        String
+  passwordHash String
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roles      UserRole[]
+  userStores UserStore[]
+  auditLogs  AuditLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Role {
+  id                String   @id @default(cuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  name              String
+  description       String?
+  globalStoreAccess Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+  storesRole      UserStore[]      @relation("UserStoreRole")
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  code        String
+  name        String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model RolePermission {
+  id           String  @id @default(cuid())
+  tenantId     String
+  tenant       Tenant  @relation(fields: [tenantId], references: [id])
+  roleId       String
+  permissionId String
+  role         Role         @relation(fields: [roleId], references: [id])
+  permission   Permission   @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+  @@index([tenantId])
+}
+
+model UserRole {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  userId   String
+  roleId   String
+  user     User   @relation(fields: [userId], references: [id])
+  role     Role   @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+  @@index([tenantId])
+}
+
+model UserStore {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  userId      String
+  storeId     String
+  storeRoleId String?
+  user        User     @relation(fields: [userId], references: [id])
+  store       Store    @relation(fields: [storeId], references: [id])
+  storeRole   Role?    @relation("UserStoreRole", fields: [storeRoleId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, userId, storeId])
+  @@index([tenantId, storeId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  storeId   String?
+  store     Store?   @relation(fields: [storeId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String?
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  device    String?
+  timestamp DateTime @default(now())
+
+  @@index([tenantId, timestamp])
 }

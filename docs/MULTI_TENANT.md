@@ -20,8 +20,15 @@ TenantContext {
 - **unidades permitidas**: derivadas de `UserStore` (acesso explícito) ou de role
   tenant-wide com acesso global (ex.: ADMIN/GERENTE).
 - **permissões por tenant**: as de `Role` do usuário (independentes de unidade).
+  Role → `RolePermission` → `Permission` (join explícito com `tenantId`).
+  `Role.globalStoreAccess=true` indica acesso a **todas** as unidades do tenant
+  (ex.: ADMIN/GERENTE).
 - **permissões por unidade**: `UserStore.storeRoleId` opcional — se presente, sobrepõe a
   role global **dentro daquela unidade**.
+
+> Implementação: `AuthorizationService.resolve(ctx)` + `StoreSwitchService.authorizeSwitch`
+> (Fase 2). A **rota HTTP** `POST /api/v1/session/store` é ligada na Fase 3 (Auth.js),
+> reutilizando `authorizeSwitch` para validar `UserStore`/role antes de reemitir o token.
 
 ## 2. Proibição fundamental
 
@@ -99,6 +106,10 @@ abstract class TenantScopedRepository {
   protected scopeStore(where) { return { ...where, tenantId: this.ctx.tenantId, storeId: this.ctx.storeId! } }
 }
 ```
+
+> Implementado em F2 (F2-05): `TenantRepository`, `UserRepository`, `AccessRepository`,
+> `AuditLogRepository` — todos herdam `TenantScopedRepository` e nunca aceitam
+> `tenantId`/`storeId` como parâmetro livre.
 
 - Repositórios **não expõem** método que aceite `tenantId`/`storeId` como parâmetro.
 - Nenhum `prisma.X.findFirst({ where: { id } })` sem `scope()`.

@@ -27,9 +27,10 @@ São do tenant como um todo; consultadas sem depender de unidade.
 |---|---|---|
 | Tenant | — (raiz) | própria raiz |
 | User | ✓ | usuário do tenant |
-| Role | ✓ | perfil (ADMIN, GERENTE, …) |
+| Role | ✓ | perfil (ADMIN, GERENTE, …); `globalStoreAccess` = acesso a todas as unidades |
 | Permission | ✓ | recurso.permisso (ex.: `sales.create`) |
 | UserRole | ✓ | liga User–Role |
+| RolePermission | ✓ | liga Role–Permission (join explícito com `tenantId`) |
 | Product | ✓ | — |
 | ProductCategory | ✓ | — |
 | ProductBrand | ✓ | — |

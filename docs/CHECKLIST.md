@@ -46,14 +46,14 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F2-01 | Tenant | ⬜ | F1 | - | - | - |
-| F2-02 | Contexto do tenant | ⬜ | F2-01 | - | - | - |
-| F2-03 | Isolamento | ⬜ | F2-02 | - | - | - |
-| F2-04 | Middleware | ⬜ | F2-02 | - | - | - |
-| F2-05 | Repositories (TenantScoped) | ⬜ | F2-03 | - | - | - |
-| F2-06 | Autorização | ⬜ | F2-05 | - | - | - |
-| F2-07 | Testes de isolamento (A×B) | ⬜ | F2-05 | - | - | - |
-| F2-08 | Auditoria | ⬜ | F2-01 | - | - | - |
+| F2-01 | Tenant | ✅ | F1 | `prisma/schema.prisma` `migration f2_multi_tenant` | `npx prisma migrate dev` | models Tenant, Store, User, Role, Permission, RolePermission, UserRole, UserStore, AuditLog |
+| F2-02 | Contexto do tenant | ✅ | F2-01 | `src/modules/tenant/domain/tenant-context.ts` | tests unit multi-tenant | TenantContext (tenantId fixo; storeId de contexto mutável); F3 conecta Auth.js |
+| F2-03 | Isolamento | ✅ | F2-02 | `src/modules/tenant/repositories/tenant-scoped-repository.ts` | tests integração A×B | `scope()`/`scopeStore()`; tenantId/storeId nunca do cliente |
+| F2-04 | Middleware | ✅ | F2-02 | `src/lib/api/guards.ts` `src/lib/session.ts` | unit `withApiGuards` 401 | camada de API; `getSessionContext` é símbolo até F3 (Auth.js) |
+| F2-05 | Repositories (TenantScoped) | ✅ | F2-03 | `src/modules/{tenant,iam,audit}/repositories/*` | tests integração | nenhum método aceita tenantId/storeId |
+| F2-06 | Autorização | ✅ | F2-05 | `src/modules/iam/services/authorization-service.ts` `src/modules/iam/permissions.ts` | unit resolve/authorize | role-da-unidade vence role global; catálogo por tenant (SECURITY.md) |
+| F2-07 | Testes de isolamento (A×B) | ✅ | F2-05 | `src/test/integration/isolation.test.ts` | `npm test` (23/23) | 2 tenants distintos; 404/403 cruzados; exige `pdv_test` |
+| F2-08 | Auditoria | ✅ | F2-01 | `src/modules/audit/*` | teste integração auditoria | AuditLog tenantId+storeId; USER_CREATED/STORE_SWITCHED prontos |
 
 ## FASE 3 — AUTENTICAÇÃO
 
@@ -337,7 +337,9 @@
 ## Legenda de progresso geral
 
 - ✅ **FASE 0** — Planejamento concluído (docs + ADRs + roadmap + checklist).
-- 🟡 **FASE 1** — em andamento (próxima).
+- ✅ **FASE 1** — Fundação concluída (Next/Tailwind/shadcn/Prisma 7/Vitest).
+- ✅ **FASE 2** — Multi-tenant concluída (models, contexto, isolamento, autorização, auditoria,
+  testes A×B). Troca de unidade (rota HTTP) integra na F3 (Auth.js).
 - ⬜ Demais fases — não iniciadas, conforme numeração fixa do Prompt Mestre.
 - ❌ **F14-03/04/05/07** — bloqueadas por dependência externa (SEFAZ/certificado); abstrações
   serão implementadas na fase, sem simular funcionamento real.
