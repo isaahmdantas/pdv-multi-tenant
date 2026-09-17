@@ -20,6 +20,59 @@
 | GET | `/api/v1/session` | sessão atual (tenant, unidade, permissões) | autenticado |
 | POST | `/api/v1/session/store` | troca de unidade (valida acesso) | autenticado |
 
+### 2.1 Login (`POST /api/v1/auth/login`)
+
+Rate limit: 5/min por IP (janela deslizante in-memory, 429 + `Retry-After`).
+
+```json
+{ "email": "admin@loja.local", "password": "admin12345", "tenantSlug": "loja-demo" }
+```
+
+`tenantSlug` é opcional; obrigatório apenas quando o e-mail existe em mais de um
+tenant (senão `400 MULTIPLE_TENANTS`). Resposta `200` define o cookie de sessão
+(httpOnly) e devolve:
+
+```json
+{
+  "user": { "id": "...", "name": "...", "email": "...", "tenantId": "...",
+            "storeId": "...", "role": "ADMIN", "permissions": ["sales.create", "..."] }
+}
+```
+
+- `401 INVALID_CREDENTIALS` — e-mail/senha incorretos (mensagem única, sem vazar existência).
+- `403 INACTIVE_USER` — usuário inativo.
+- Erros de auditoria: `LOGIN`.
+
+### 2.2 Sessão (`GET /api/v1/session`)
+
+Devolve `{ session: { tenantId, userId, storeId, role, permissions } }`, lido
+exclusivamente do JWT (cookie httpOnly). Nunca reflete tenant/store enviados pelo cliente.
+
+### 2.3 Troca de unidade (`POST /api/v1/session/store`)
+
+```json
+{ "storeId": "..." }
+```
+
+Valida em banco: unidade pertence ao tenant (404 `STORE_NOT_FOUND`, não vaza
+existência), acesso por `UserStore` **ou** role com `globalStoreAccess` (403
+`STORE_NOT_ALLOWED`), recalcula role/permissões efetivas (role da unidade vence a
+global), reemite o JWT com o mesmo secret/salt, e audita `STORE_SWITCHED`
+(before/after `{storeId}`). Resposta: `{ storeId, role, permissions }`.
+
+### 2.4 RBAC (usuários/roles/permissões)
+
+| Método | Rota | Descrição | Perm |
+|---|---|---|---|
+| GET | `/api/v1/users` | lista usuários do tenant (roles + unidades) | `settings.manage` |
+| POST | `/api/v1/users` | cria usuário (argon2, roles + UserStore) | `settings.manage` |
+| GET | `/api/v1/roles` | lista roles do tenant com permissões | `settings.manage` |
+| POST | `/api/v1/roles` | cria role (valida `permissionCodes` ∈ catálogo) | `settings.manage` |
+| GET | `/api/v1/permissions` | catálogo de permissões (`[{ code }]`) | `settings.manage` |
+
+POST `/api/v1/roles` — conflito 409 `ROLE_TAKEN`; códigos inválidos 400
+`INVALID_PERMISSIONS`. Auditoria: `ROLE_CREATED`, `USER_CREATED`.
+
 ## 3. Recursos
 
 | Método | Rota | Descrição | Perm |

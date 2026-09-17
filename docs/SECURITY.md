@@ -14,6 +14,16 @@ Auth.js v5, credenciais (email/senha), senha com hash **argon2** (bcrypt fallbac
 com estratégia `jwt` e cookie httpOnly. Itens da sessão: sub, tenantId, storeId,
 role, permissions (ver MULTI_TENANT.md §4).
 
+Implementado na Fase 3:
+- `POST /api/v1/auth/login` — login próprio (Auth.js usado p/ custódia do cookie e
+  `authorized` no proxy), salt dos JWE = **nome do cookie** (`authjs.session-token`/
+  `__Secure-authjs.session-token`), `AUTH_SECRET` obrigatório. Resposta define cookie
+  httpOnly, sameSite=lax, path=/, maxAge 30 dias.
+- Rate limiting em `/api/v1/auth/*`: janela deslizante in-memory (`lib/api/rate-limit.ts`),
+  5/min por IP com `Retry-After` (429 `RATE_LIMITED`). Trocar por store compartilhada em produção.
+- Mensagem única de erro (`INVALID_CREDENTIALS`) — não vaza existência de e-mail/tenant.
+- Auditoria: `LOGIN`, `LOGOUT`, `STORE_SWITCHED` (antes/depois), `ROLE_CREATED`, `USER_CREATED`.
+
 ## 3. Autorização (F18-02)
 
 Permissões `recurso.acao`. Catálogo inicial:

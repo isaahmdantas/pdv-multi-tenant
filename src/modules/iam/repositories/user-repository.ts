@@ -25,6 +25,23 @@ export class UserRepository extends TenantScopedRepository {
   async existsByEmail(email: string) {
     return !!(await this.findByEmail(email));
   }
+
+  async list() {
+    return this.prisma.user.findMany({
+      where: this.scope({}),
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        email: true,
+        status: true,
+        createdAt: true,
+        roles: { include: { role: { select: { name: true } } } },
+        userStores: { include: { store: { select: { id: true, name: true, code: true } } } },
+      },
+    });
+  }
 }
 
 export function userRepository(prisma: PrismaClient, ctx: TenantContext) {

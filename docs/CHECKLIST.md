@@ -59,14 +59,14 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F3-01 | Usuários | ⬜ | F2 | - | - | - |
-| F3-02 | Login | ⬜ | F3-01 | - | - | - |
-| F3-03 | Logout | ⬜ | F3-02 | - | - | - |
-| F3-04 | Sessão (tenant + unidade atual) | ⬜ | F3-02 | - | - | - |
-| F3-05 | Roles | ⬜ | F3-01 | - | - | - |
-| F3-06 | Permissions | ⬜ | F3-05 | - | - | - |
-| F3-07 | Proteção de rotas | ⬜ | F3-04 | - | - | - |
-| F3-08 | Troca de unidade sem logout | ⬜ | F3-04, F4-03 | - | - | - |
+| F3-01 | Usuários | ✅ | F2 | `src/app/api/v1/users/route.ts`, `UserService` | `npm test` + curl POST/GET | argon2; 409 EMAIL_TAKEN; roles+unidades na transação |
+| F3-02 | Login | ✅ | F3-01 | `src/app/api/v1/auth/login/route.ts`, `AuthenticationService` | curl + teste integração | 5/min/IP (429); INVALID_CREDENTIALS/INACTIVE_USER/MULTIPLE_TENANTS; audit LOGIN |
+| F3-03 | Logout | ✅ | F3-02 | `src/app/api/v1/auth/logout/route.ts` | curl (cookie limpo) | audit LOGOUT |
+| F3-04 | Sessão (tenant + unidade atual) | ✅ | F3-02 | `src/lib/session.ts`, `src/lib/session-cookies.ts`, `GET /api/v1/session` | teste unit (getToken) + curl | JWT JWE httpOnly; storeId = seleção, não identidade |
+| F3-05 | Roles | ✅ | F3-01 | `src/app/api/v1/roles/route.ts`, `RoleService/RoleRepository` | teste + curl | `Role.globalStoreAccess`; 409 ROLE_TAKEN; audit ROLE_CREATED |
+| F3-06 | Permissions | ✅ | F3-05 | `src/app/api/v1/permissions/route.ts`, `PERMISSIONS` | curl | catálogo 19 permissões; `isValidPermissionCode` |
+| F3-07 | Proteção de rotas | ✅ | F3-04 | `src/proxy.ts` (Next 16: exports `proxy`), `authorized` callback | curl /dashboard sem cookie → 307 /login | Sem `...nextauth` para login; páginas protegidas exceto `/`, `/login`, `/api/*`, estáticos |
+| F3-08 | Troca de unidade sem logout | ✅ | F3-04, F4-03 | `src/app/api/v1/session/store/route.ts`, `StoreSwitchService.authorizeSwitch` | curl + teste integração | revalida UserStore/role no banco; reemite JWT; audit STORE_SWITCHED (before/after) |
 
 ## FASE 4 — UNIDADES DA EMPRESA
 

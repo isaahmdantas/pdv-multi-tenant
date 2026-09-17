@@ -49,4 +49,35 @@ export class StoreSwitchService {
 
     return { storeId: newStoreId, role, permissions };
   }
+
+  /**
+   * Unidades acessíveis ao usuário (para a UI de troca de unidade/dashboard):
+   * todas as ACTIVE se houver role com globalStoreAccess, senão apenas as
+   * contidas nas UserStore do usuário.
+   */
+  async listAccessibleStores(
+    tenantId: string,
+    userId: string,
+  ): Promise<{ storeId: string; name: string; code: string }[]> {
+    const ctx: TenantContext = { tenantId, userId, storeId: null, role: "NONE", permissions: [] };
+    const access = new AccessRepository(this.prisma, ctx);
+
+    if (await access.userHasGlobalStoreAccess()) {
+      const stores = await this.prisma.store.findMany({
+        where: { tenantId, status: "ACTIVE" },
+        orderBy: { code: "asc" },
+        select: { id: true, name: true, code: true },
+      });
+      return stores.map((s) => ({ storeId: s.id, name: s.name, code: s.code }));
+    }
+
+    const userStores = await access.userStores();
+    return userStores
+      .filter((us) => us.store.status === "ACTIVE")
+      .map((us) => ({
+        storeId: us.store.id,
+        name: us.store.name,
+        code: us.store.code,
+      }));
+  }
 }

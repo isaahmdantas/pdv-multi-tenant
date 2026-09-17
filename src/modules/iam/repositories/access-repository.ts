@@ -40,6 +40,7 @@ export class AccessRepository extends TenantScopedRepository {
     return this.prisma.userStore.findMany({
       where: this.scope({ userId: this.ctx.userId }),
       include: { store: true },
+      orderBy: { createdAt: "asc" },
     });
   }
 

@@ -27,8 +27,10 @@ TenantContext {
   role global **dentro daquela unidade**.
 
 > Implementação: `AuthorizationService.resolve(ctx)` + `StoreSwitchService.authorizeSwitch`
-> (Fase 2). A **rota HTTP** `POST /api/v1/session/store` é ligada na Fase 3 (Auth.js),
-> reutilizando `authorizeSwitch` para validar `UserStore`/role antes de reemitir o token.
+> (Fase 2). A **rota HTTP** `POST /api/v1/session/store` foi ligada na **Fase 3**
+> (`src/app/api/v1/session/store/route.ts`): valida `UserStore`/role, recalcula permissões
+> efetivas (role da unidade vence global), **reemite o JWT** com o mesmo secret/salt e grava
+> `AuditLog STORE_SWITCHED` (before/after `{storeId}`).
 
 ## 2. Proibição fundamental
 
