@@ -37,6 +37,10 @@ São do tenant como um todo; consultadas sem depender de unidade.
 | ProductBarcode | ✓ | vários por produto |
 | UnitOfMeasure | ✓ | unidade de medida (UN, KG, CX…) |
 | UnitConversion | ✓ | ex.: 1 CX = 12 UN |
+
+> **F5 (migration `f5_products`):** Product, ProductCategory, ProductBrand, ProductBarcode,
+> UnitOfMeasure e UnitConversion criados conforme a tabela acima; ProductStore em §2.2.
+> `Product.basePrice` (Decimal) é o fallback de preço (PRICING priority 6).
 | CustomerCategory | ✓ | Varejo, Atacado, Funcionário… |
 | Customer | ✓ | categoria via customerCategoryId |
 | Supplier | ✓ | — |

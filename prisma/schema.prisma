@@ -33,6 +33,13 @@ model Tenant {
   cashRegisters    CashRegister[]
   terminals        Terminal[]
   devices          Device[]
+  productCategories ProductCategory[]
+  productBrands     ProductBrand[]
+  unitOfMeasures    UnitOfMeasure[]
+  unitConversions   UnitConversion[]
+  products          Product[]
+  productBarcodes   ProductBarcode[]
+  productStores     ProductStore[]
 
   @@index([slug])
 }
@@ -65,6 +72,7 @@ name      String
   cashRegisters    CashRegister[]
   terminals        Terminal[]
   devices          Device[]
+  productStores    ProductStore[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -234,4 +242,130 @@ model AuditLog {
   timestamp DateTime @default(now())
 
   @@index([tenantId, timestamp])
+}
+
+// —— Fase 5 — Produtos ———
+
+model ProductCategory {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model ProductBrand {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model UnitOfMeasure {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  code      String
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products         Product[]        @relation("ProductBaseUnit")
+  conversionsFrom  UnitConversion[] @relation("UnitConversionFrom")
+  conversionsTo    UnitConversion[] @relation("UnitConversionTo")
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model UnitConversion {
+  id         String  @id @default(cuid())
+  tenantId   String
+  tenant     Tenant  @relation(fields: [tenantId], references: [id])
+  fromUnitId String
+  toUnitId   String
+  factor     Decimal
+  fromUnit   UnitOfMeasure @relation("UnitConversionFrom", fields: [fromUnitId], references: [id])
+  toUnit     UnitOfMeasure @relation("UnitConversionTo", fields: [toUnitId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([tenantId, fromUnitId, toUnitId])
+  @@index([tenantId])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  name        String
+  sku         String
+  description String?
+  categoryId  String?
+  brandId     String?
+  baseUnitId  String
+  basePrice   Decimal  @default(0)
+  status      String   @default("ACTIVE")
+  ncm         String?
+  cest        String?
+  cfop        String?
+  isService   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    ProductCategory?  @relation(fields: [categoryId], references: [id])
+  brand       ProductBrand?     @relation(fields: [brandId], references: [id])
+  baseUnit    UnitOfMeasure     @relation("ProductBaseUnit", fields: [baseUnitId], references: [id])
+  barcodes    ProductBarcode[]
+  storeLinks  ProductStore[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId])
+  @@index([tenantId, name])
+}
+
+model ProductBarcode {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  value     String
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, value])
+  @@index([productId])
+  @@index([tenantId])
+}
+
+model ProductStore {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, storeId, productId])
+  @@index([tenantId, storeId])
+  @@index([productId])
 }

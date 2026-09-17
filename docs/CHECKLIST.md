@@ -84,15 +84,15 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F5-01 | Categorias de produto | ⬜ | F2 | - | - | - |
-| F5-02 | Marcas | ⬜ | F5-01 | - | - | - |
-| F5-03 | Produtos | ⬜ | F5-01 | - | - | - |
-| F5-04 | SKU | ⬜ | F5-03 | - | - | - |
-| F5-05 | Código de barras | ⬜ | F5-03 | - | - | - |
-| F5-06 | Unidades de medida (UoM) | ⬜ | F5-03 | - | - | - |
-| F5-07 | Conversões de unidade | ⬜ | F5-06 | - | - | - |
-| F5-08 | Produtos por unidade (ProductStore) | ⬜ | F5-03, F4 | - | - | - |
-| F5-09 | Campos fiscais do produto | ⬜ | F5-03 | - | - | - |
+| F5-01 | Categorias de produto | ✅ | F2 | `src/modules/products/services/product-category-service.ts`, `src/app/api/v1/products/categories/**` | unit + integração; HTTP smoke | Resource CRUD scoped; auditoria PRODUCT_CATEGORY_* |
+| F5-02 | Marcas | ✅ | F5-01 | `src/modules/products/services/product-brand-service.ts`, `src/app/api/v1/products/brands/**` | unit + integração | Resource CRUD scoped; auditoria PRODUCT_BRAND_* |
+| F5-03 | Produtos | ✅ | F5-01 | `src/modules/products/services/product-service.ts`, `src/app/api/v1/products/**` | unit + integração; HTTP smoke | GET/POST + /:id GET/PUT/DELETE(soft); isolamento A×B |
+| F5-04 | SKU | ✅ | F5-03 | `Product.sku @@unique[tenantId,sku]` (schema) | 409 PRODUCT_TAKEN em integração | Unique scoped por tenant |
+| F5-05 | Código de barras | ✅ | F5-03 | `ProductBarcode @@unique[tenantId,value]`, `GET /api/v1/products/barcode/:code` | 409 BARCODE_TAKEN; barcode B invisível em A | Múltiplos por produto (max 20) |
+| F5-06 | Unidades de medida (UoM) | ✅ | F5-03 | `src/modules/products/services/unit-measure-service.ts`, `src/app/api/v1/unit-measures/**` | unit + integração | Resource CRUD; UN/KG/CX |
+| F5-07 | Conversões de unidade | ✅ | F5-06 | `UnitConversion @@unique[tenantId,fromUnitId,toUnitId]`, `conversions` em `/unit-measures/:id` | integração (409 dup/self 400/target 400/remove) | 1 CX = 12 UN; auditoria UNIT_CONVERSION_* |
+| F5-08 | Produtos por unidade (ProductStore) | ✅ | F5-03, F4 | `ProductStore` + `PUT /api/v1/products/:id/stores/:storeId` | integração availableInStore true/false | Default: disponível em todas unidades; toggle upsert ACTIVE/INACTIVE |
+| F5-09 | Campos fiscais do produto | ✅ | F5-03 | `Product.ncm/cest/cfop/isService` + `fiscal` na API | unit (schema) | Config em repouso; emissão SEFAZ ❌ BLOQUEADO F14 |
 
 ## FASE 6 — CLIENTES
 

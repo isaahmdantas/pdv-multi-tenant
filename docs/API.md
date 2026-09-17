@@ -104,11 +104,18 @@ repouso** — nenhuma emissão ocorre no MVP.
 
 | Método | Rota | Descrição | Perm |
 |---|---|---|---|
-| GET/POST | `/api/v1/products` | listar(unit store)/criar produto | `products.create` (POST) |
-| GET/PUT | `/api/v1/products/:id` | consultar/atualizar | `products.update` |
+| GET/POST | `/api/v1/products` | listar (filtra unidade ativa)/criar produto | `products.create` (POST) |
+| GET/PUT/DELETE | `/api/v1/products/:id` | consultar/atualizar/desativar (soft) | `products.update` / `products.delete` |
 | GET | `/api/v1/products/barcode/:code` | resolver código de barras | autenticado |
-| GET/POST | `/api/v1/products/categories` | categorias | `products.create` |
-| GET/POST | `/api/v1/unit-measures` | UoM (inclusive conversões) | `products.create` |
+| GET/POST | `/api/v1/products/categories` | listar/criar categorias | `products.create` (POST) |
+| GET/PUT/DELETE | `/api/v1/products/categories/:id` | consultar/atualizar/desativar categoria | `products.update`/`products.delete` |
+| GET/POST | `/api/v1/products/brands` | listar/criar marcas | `products.create` (POST) |
+| GET/PUT/DELETE | `/api/v1/products/brands/:id` | consultar/atualizar/desativar marca | `products.update`/`products.delete` |
+| PUT | `/api/v1/products/:id/stores/:storeId` | habilitar/desabilitar produto na unidade (`status` ACTIVE/INACTIVE) | `products.update` |
+| GET/POST | `/api/v1/unit-measures` | listar UoM (com conversões)/criar | `products.create` (POST) |
+| GET/PUT/DELETE | `/api/v1/unit-measures/:id` | consultar/atualizar/desativar UoM | `products.update`/`products.delete` |
+| POST | `/api/v1/unit-measures/:id/conversions` | criar conversão (`{toUnitId, factor}`) | `products.create` |
+| DELETE | `/api/v1/unit-measures/:id/conversions/:toUnitId` | remover conversão | `products.delete` |
 | GET/POST | `/api/v1/customers` | clientes | `customers.manage` |
 | GET/POST | `/api/v1/customer-categories` | categorias de cliente | `customers.manage` |
 | GET | `/api/v1/pricing/price?productId=&quantity=` | resolver preço (PricingService) | autenticado |

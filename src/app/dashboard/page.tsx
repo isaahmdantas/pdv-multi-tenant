@@ -88,6 +88,12 @@ export default async function DashboardPage() {
         >
           Unidades
         </Link>
+        <Link
+          href="/produtos"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Produtos
+        </Link>
       </nav>
     </main>
   );
