@@ -30,6 +30,9 @@ model Tenant {
   userStores       UserStore[]
   rolePermissions  RolePermission[]
   auditLogs        AuditLog[]
+  cashRegisters    CashRegister[]
+  terminals        Terminal[]
+  devices          Device[]
 
   @@index([slug])
 }
@@ -38,17 +41,82 @@ model Store {
   id        String   @id @default(cuid())
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  name      String
+name      String
   code      String
   status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userStores UserStore[]
-  auditLogs  AuditLog[]
+  document          String?
+  phone             String?
+  email             String?
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?
+  timezone          String   @default("America/Sao_Paulo")
+  fiscalState       String?
+  fiscalEnvironment String?
+  fiscalEnabled     Boolean  @default(false)
+  fiscalSeries      String?
+
+  userStores       UserStore[]
+  auditLogs        AuditLog[]
+  cashRegisters    CashRegister[]
+  terminals        Terminal[]
+  devices          Device[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
+}
+
+model CashRegister {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, storeId, name])
+  @@index([tenantId, storeId])
+}
+
+model Terminal {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  name      String
+  code      String
+  mode      String   @default("POS")
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, code])
+  @@index([tenantId, storeId])
+}
+
+model Device {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  storeId    String?
+  store      Store?   @relation(fields: [storeId], references: [id])
+  type       String
+  identifier String
+  name       String?
+  status     String   @default("ACTIVE")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, type, identifier])
+  @@index([tenantId, storeId])
 }
 
 model User {

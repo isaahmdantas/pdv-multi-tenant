@@ -54,7 +54,7 @@ Entidades ancoradas em uma unidade operacional da empresa.
 
 | Entidade | tenantId | storeId | obs |
 |---|---|---|---|
-| Store | ✓ | — (ela é a unidade) | filha de Tenant |
+| Store | ✓ | — (ela é a unidade) | filha de Tenant; + document/contato/endereço/timezone e campos fiscais (fiscalState/fiscalEnvironment/fiscalEnabled/fiscalSeries) |
 | UserStore | ✓ | ✓ | acesso/permissão de usuário à unidade |
 | Device | ✓ | ✓ | aparelho físico |
 | Terminal | ✓ | ✓ | terminal (mode: POS/SELF_CHECKOUT/ADMIN) |

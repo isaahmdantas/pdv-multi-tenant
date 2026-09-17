@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { StoreSwitchService } from "@/modules/iam/services/store-switch-service";
 import { StoreSwitcher } from "@/components/auth/store-switcher";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { buttonVariants } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Dashboard | PDV Multi-tenant",
@@ -78,6 +80,15 @@ export default async function DashboardPage() {
       <section className="rounded-lg border bg-card p-5 shadow-sm">
         <StoreSwitcher stores={stores} currentStoreId={user.storeId} />
       </section>
+
+      <nav className="flex gap-3">
+        <Link
+          href="/unidades"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Unidades
+        </Link>
+      </nav>
     </main>
   );
 }

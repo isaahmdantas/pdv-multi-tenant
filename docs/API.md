@@ -73,6 +73,33 @@ global), reemite o JWT com o mesmo secret/salt, e audita `STORE_SWITCHED`
 POST `/api/v1/roles` — conflito 409 `ROLE_TAKEN`; códigos inválidos 400
 `INVALID_PERMISSIONS`. Auditoria: `ROLE_CREATED`, `USER_CREATED`.
 
+### 2.5 Unidades (stores), usuários×unidade, caixas e terminais
+
+| Método | Rota | Descrição | Perm |
+|---|---|---|---|
+| GET | `/api/v1/stores` | lista unidades ativas do tenant | `settings.manage` |
+| POST | `/api/v1/stores` | cria unidade (valida `code` único) | `settings.manage` |
+| GET | `/api/v1/stores/:id` | detalhe da unidade | `settings.manage` |
+| PUT | `/api/v1/stores/:id` | atualização parcial (document, contato, endereço, timezone, fiscal*) | `settings.manage` |
+| DELETE | `/api/v1/stores/:id` | desativa (soft → status `INACTIVE`) | `settings.manage` |
+| GET | `/api/v1/users/:id` | usuário com unidades concedidas | `settings.manage` |
+| POST | `/api/v1/users/:id/stores` | concede unidade ao usuário (`{ storeId, storeRoleId? }`) | `settings.manage` |
+| PUT | `/api/v1/users/:id/stores/:storeId` | altera `storeRoleId` (override de role na unidade) | `settings.manage` |
+| DELETE | `/api/v1/users/:id/stores/:storeId` | revoga acesso do usuário à unidade | `settings.manage` |
+| GET | `/api/v1/cash-registers?storeId=` | lista caixas (registro; operação é F10) | `settings.manage` |
+| POST | `/api/v1/cash-registers` | cria caixa `{ storeId, name }` | `settings.manage` |
+| DELETE | `/api/v1/cash-registers/:id` | desativa caixa | `settings.manage` |
+| GET | `/api/v1/terminals?storeId=` | lista terminais (mode POS/SELF_CHECKOUT/ADMIN) | `settings.manage` |
+| POST | `/api/v1/terminals` | cria terminal `{ storeId, name, code, mode? }` | `settings.manage` |
+| DELETE | `/api/v1/terminals/:id` | desativa terminal | `settings.manage` |
+
+POST `/api/v1/stores`/PUT — conflito 409 `STORE_TAKEN` (code duplicado no tenant);
+GET inexistente 404 `STORE_NOT_FOUND`. Auditoria: `STORE_CREATED`, `STORE_UPDATED`,
+`STORE_DEACTIVATED`, `USER_STORE_GRANTED`, `USER_STORE_UPDATED`, `USER_STORE_REVOKED`,
+`CASH_REGISTER_CREATED/DEACTIVATED`, `TERMINAL_CREATED/DEACTIVATED`. O campo
+de configuração fiscal (`fiscalEnabled`, `fiscalSeries`, ...) é **configuração em
+repouso** — nenhuma emissão ocorre no MVP.
+
 ## 3. Recursos
 
 | Método | Rota | Descrição | Perm |

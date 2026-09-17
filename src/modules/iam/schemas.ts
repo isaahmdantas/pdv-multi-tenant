@@ -37,7 +37,18 @@ export const createRoleSchema = z.object({
     .min(1, "Ao menos uma permissão é obrigatória"),
 });
 
+export const grantUserStoreSchema = z.object({
+  storeId: z.string().min(1, "storeId é obrigatório"),
+  storeRoleId: z.string().min(1).nullable().optional(),
+});
+
+export const updateUserStoreSchema = z.object({
+  storeRoleId: z.string().min(1).nullable().optional(),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type SwitchStoreInput = z.infer<typeof switchStoreSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateRoleInput = z.infer<typeof createRoleSchema>;
+export type GrantUserStoreInput = z.infer<typeof grantUserStoreSchema>;
+export type UpdateUserStoreInput = z.infer<typeof updateUserStoreSchema>;

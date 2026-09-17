@@ -72,13 +72,13 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F4-01 | Cadastro (Store) | ⬜ | F2 | - | - | - |
-| F4-02 | Configuração da unidade | ⬜ | F4-01 | - | - | - |
-| F4-03 | Usuários por unidade (UserStore) | ⬜ | F4-01, F3 | - | - | - |
-| F4-04 | Estoque por unidade | ⬜ | F4-01 | - | - | - |
-| F4-05 | Caixas | ⬜ | F4-01 | - | - | - |
-| F4-06 | Terminais | ⬜ | F4-01 | - | - | - |
-| F4-07 | Configuração fiscal por unidade | ⬜ | F4-02 | - | - | - |
+| F4-01 | Cadastro (Store) | ✅ | F2 | `StoreService/StoreRepository`, `src/app/api/v1/stores/route.ts` | `npm test` (59/59) + build | 409 STORE_TAKEN (code único @@unique[tenantId,code]); soft-delete → INACTIVE sai de listAccessibleStores; audit STORE_CREATED/UPDATED/DEACTIVATED |
+| F4-02 | Configuração da unidade | ✅ | F4-01 | `updateStoreSchema`, `PUT /api/v1/stores/:id` | teste + build | document/phone/email/address/city/state/zipCode/timezone; PUT parcial |
+| F4-03 | Usuários por unidade (UserStore) | ✅ | F4-01, F3 | `UserStoreService`, `/api/v1/users/[id]` + `/stores` + `/stores/[storeId]` | teste integração (grant→authorizeSwitch ok; revoke→403) | grant/update/revoke com storeRoleId override; audit USER_STORE_GRANTED/UPDATED/REVOKED; efeito validado em `authorizeSwitch` |
+| F4-04 | Estoque por unidade | ✅ | F4-01 | `TenantScopedRepository.scopeStore` | teste integração (scoped) | regra StoreScoped garantida por construção; modelos StockBalance/StockMovement ficam para F8 (dependem de Product/F5) |
+| F4-05 | Caixas | ✅ | F4-01 | `CashRegisterService`, `/api/v1/cash-registers` (+`/[id]` DELETE) | teste + build | modelo StoreScoped (tenantId+storeId); só registro — abertura/fechamento é F10; audit CASH_REGISTER_CREATED/DEACTIVATED |
+| F4-06 | Terminais | ✅ | F4-01 | `TerminalService`, `/api/v1/terminals` (+`/[id]` DELETE) | teste + build | mode POS/SELF_CHECKOUT/ADMIN; audit TERMINAL_CREATED/DEACTIVATED |
+| F4-07 | Configuração fiscal por unidade | ✅ | F4-02 | campos `fiscalState/fiscalEnvironment/fiscalEnabled/fiscalSeries` | build + testes | config em repouso; emissão NUNCA no MVP (SEFAZ ❌ BLOQUEADO F14) |
 
 ## FASE 5 — PRODUTOS
 

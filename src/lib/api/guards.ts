@@ -3,10 +3,10 @@ import type { TenantContext } from "@/modules/tenant/domain/tenant-context";
 import { getSessionContext } from "@/lib/session";
 import { ApiError } from "@/lib/api/errors";
 
-type ApiHandler = (
+type ApiHandler<Args extends unknown[] = unknown[]> = (
   ctx: TenantContext,
   request: Request,
-  ...args: unknown[]
+  ...args: Args
 ) => Promise<Response> | Response;
 
 /**
@@ -14,8 +14,11 @@ type ApiHandler = (
  * autenticação (401) e a permissão opcional (403), e converte ApiError
  * em resposta JSON. Defesa em profundidade — o contexto vem somente da sessão.
  */
-export function withApiGuards(handler: ApiHandler, requiredPermission?: string) {
-  return async (request: Request, ...args: unknown[]): Promise<Response> => {
+export function withApiGuards<Args extends unknown[]>(
+  handler: ApiHandler<Args>,
+  requiredPermission?: string,
+) {
+  return async (request: Request, ...args: Args): Promise<Response> => {
     const ctx = await getSessionContext(request);
 
     if (!ctx) {
