@@ -1,5 +1,5 @@
 // Fase 1/2 — fundação + multi-tenant.
-// Regras (ADR-0005): IDs cuid(), Decimal para money (nunca float),
+// Regras (ADR-0005): IDs cuid(2), Decimal para money (nunca float),
 // sem enums nativos (String + union TS + Zod), sem extensões PG.
 // Classificação de escopo: TenantScoped (tenantId), StoreScoped (tenantId+storeId),
 // itens-filho (tenantId). Ver docs/DATABASE.md §2.
@@ -15,7 +15,7 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   name      String
   slug      String   @unique
   status    String   @default("ACTIVE")
@@ -40,12 +40,14 @@ model Tenant {
   products          Product[]
   productBarcodes   ProductBarcode[]
   productStores     ProductStore[]
+  customerCategories CustomerCategory[]
+  customers          Customer[]
 
   @@index([slug])
 }
 
 model Store {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
 name      String
@@ -66,6 +68,8 @@ name      String
   fiscalEnvironment String?
   fiscalEnabled     Boolean  @default(false)
   fiscalSeries      String?
+  defaultCustomerCategoryId String?
+  defaultCustomerCategory   CustomerCategory? @relation("StoreDefaultCategory", fields: [defaultCustomerCategoryId], references: [id])
 
   userStores       UserStore[]
   auditLogs        AuditLog[]
@@ -79,7 +83,7 @@ name      String
 }
 
 model CashRegister {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   storeId   String
@@ -94,7 +98,7 @@ model CashRegister {
 }
 
 model Terminal {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   storeId   String
@@ -111,7 +115,7 @@ model Terminal {
 }
 
 model Device {
-  id         String   @id @default(cuid())
+  id         String   @id @default(cuid(2))
   tenantId   String
   tenant     Tenant   @relation(fields: [tenantId], references: [id])
   storeId    String?
@@ -128,7 +132,7 @@ model Device {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String   @id @default(cuid(2))
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
   name         String
@@ -147,7 +151,7 @@ model User {
 }
 
 model Role {
-  id                String   @id @default(cuid())
+  id                String   @id @default(cuid(2))
   tenantId          String
   tenant            Tenant   @relation(fields: [tenantId], references: [id])
   name              String
@@ -165,7 +169,7 @@ model Role {
 }
 
 model Permission {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid(2))
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
   code        String
@@ -180,7 +184,7 @@ model Permission {
 }
 
 model RolePermission {
-  id           String  @id @default(cuid())
+  id           String  @id @default(cuid(2))
   tenantId     String
   tenant       Tenant  @relation(fields: [tenantId], references: [id])
   roleId       String
@@ -194,7 +198,7 @@ model RolePermission {
 }
 
 model UserRole {
-  id       String @id @default(cuid())
+  id       String @id @default(cuid(2))
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
   userId   String
@@ -208,7 +212,7 @@ model UserRole {
 }
 
 model UserStore {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid(2))
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
   userId      String
@@ -225,7 +229,7 @@ model UserStore {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   storeId   String?
@@ -247,7 +251,7 @@ model AuditLog {
 // —— Fase 5 — Produtos ———
 
 model ProductCategory {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   name      String
@@ -262,7 +266,7 @@ model ProductCategory {
 }
 
 model ProductBrand {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   name      String
@@ -277,7 +281,7 @@ model ProductBrand {
 }
 
 model UnitOfMeasure {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   code      String
@@ -295,7 +299,7 @@ model UnitOfMeasure {
 }
 
 model UnitConversion {
-  id         String  @id @default(cuid())
+  id         String  @id @default(cuid(2))
   tenantId   String
   tenant     Tenant  @relation(fields: [tenantId], references: [id])
   fromUnitId String
@@ -310,7 +314,7 @@ model UnitConversion {
 }
 
 model Product {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid(2))
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
   name        String
@@ -340,7 +344,7 @@ model Product {
 }
 
 model ProductBarcode {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   productId String
@@ -354,7 +358,7 @@ model ProductBarcode {
 }
 
 model ProductStore {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   storeId   String
@@ -368,4 +372,46 @@ model ProductStore {
   @@unique([tenantId, storeId, productId])
   @@index([tenantId, storeId])
   @@index([productId])
+}
+
+model CustomerCategory {
+  id        String   @id @default(cuid(2))
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  isDefault Boolean  @default(false)
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customers Customer[]
+  storeDefault Store[] @relation("StoreDefaultCategory")
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Customer {
+  id                 String   @id @default(cuid(2))
+  tenantId           String
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  name               String
+  document           String?
+  email              String?
+  phone              String?
+  birthday           DateTime?
+  notes              String?
+  customerCategoryId String?
+  creditLimit        Decimal  @default(0)
+  loyaltyPoints      Int      @default(0)
+  status             String   @default("ACTIVE")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  category CustomerCategory? @relation(fields: [customerCategoryId], references: [id])
+
+  @@unique([tenantId, document])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([tenantId, name])
 }

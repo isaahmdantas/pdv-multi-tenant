@@ -117,7 +117,9 @@ repouso** — nenhuma emissão ocorre no MVP.
 | POST | `/api/v1/unit-measures/:id/conversions` | criar conversão (`{toUnitId, factor}`) | `products.create` |
 | DELETE | `/api/v1/unit-measures/:id/conversions/:toUnitId` | remover conversão | `products.delete` |
 | GET/POST | `/api/v1/customers` | clientes | `customers.manage` |
+| GET/PUT/DELETE | `/api/v1/customers/:id` | consultar/atualizar/desativar (soft → INACTIVE) cliente | `customers.manage` |
 | GET/POST | `/api/v1/customer-categories` | categorias de cliente | `customers.manage` |
+| GET/PUT/DELETE | `/api/v1/customer-categories/:id` | consultar/atualizar/desativar categoria | `customers.manage` |
 | GET | `/api/v1/pricing/price?productId=&quantity=` | resolver preço (PricingService) | autenticado |
 | GET/POST | `/api/v1/price-tables` | tabelas de preço | `pricing.manage` |
 | GET/POST | `/api/v1/promotions` | promoções | `pricing.manage` |

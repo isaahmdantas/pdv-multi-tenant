@@ -94,6 +94,18 @@ export default async function DashboardPage() {
         >
           Produtos
         </Link>
+        <Link
+          href="/clientes"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Clientes
+        </Link>
+        <Link
+          href="/clientes/categorias"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Categorias de cliente
+        </Link>
       </nav>
     </main>
   );

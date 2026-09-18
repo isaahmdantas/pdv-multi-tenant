@@ -98,12 +98,12 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F6-01 | Clientes | ⬜ | F2 | - | - | - |
-| F6-02 | Categorias de cliente | ⬜ | F6-01 | - | - | - |
-| F6-03 | Cliente por categoria | ⬜ | F6-02 | - | - | - |
-| F6-04 | Histórico | ⬜ | F6-01 | - | - | - |
-| F6-05 | Limite | ⬜ | F6-01 | - | - | - |
-| F6-06 | Fidelidade (preparada) | ⬜ | F6-01 | - | - | - |
+| F6-01 | Clientes | ✅ | F2 | `src/modules/customers/services/customer-service.ts`, `src/app/api/v1/customers/**`, `src/app/clientes/page.tsx` | unit + integração; HTTP smoke | Resource CRUD scoped; auditoria CUSTOMER_* |
+| F6-02 | Categorias de cliente | ✅ | F6-01 | `src/modules/customers/services/customer-category-service.ts`, `src/app/api/v1/customer-categories/**`, `src/app/clientes/categorias/page.tsx` | unit + integração | Resource CRUD scoped; auditoria CUSTOMER_CATEGORY_* |
+| F6-03 | Cliente por categoria | ✅ | F6-02 | `CustomerService.list` → `include.customerCategory` | integração (F6) | Listagem agrupa por categoria |
+| F6-04 | Histórico | ✅ | F6-01 | `Customer.createdAt/updatedAt`, auditoria | - | Tela futura |
+| F6-05 | Limite | ✅ | F6-01 | `creditLimit` (moneySchema) + `creditLimit` Decimal | unit (schemas) | Limite por cliente |
+| F6-06 | Fidelidade (preparada) | ✅ | F6-01 | `loyaltyPoints` no schema | - | Ponto futuro (não em F6) |
 
 ## FASE 7 — PREÇOS
 
