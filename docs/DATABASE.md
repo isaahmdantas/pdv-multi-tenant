@@ -41,9 +41,15 @@ São do tenant como um todo; consultadas sem depender de unidade.
 > **F5 (migration `f5_products`):** Product, ProductCategory, ProductBrand, ProductBarcode,
 > UnitOfMeasure e UnitConversion criados conforme a tabela acima; ProductStore em §2.2.
 > `Product.basePrice` (Decimal) é o fallback de preço (PRICING priority 6).
+
+> **F9 (migration `f9_purchases`):** Supplier (TenantScoped, `@@unique[tenantId,document]`),
+> Purchase (StoreScoped, `status` ORDERED→RECEIVED|CANCELLED, `totalAmount` = Σ itens) e
+> PurchaseItem (item-filho, via Purchase) criados conforme as tabelas abaixo; entrada gera
+> StockMovement IN com `referenceType = PURCHASE` (integração estoque F8). Ciclo completo em
+> `docs/PURCHASES.md`.
 | CustomerCategory | ✓ | Varejo, Atacado, Funcionário… |
 | Customer | ✓ | categoria via customerCategoryId |
-| Supplier | ✓ | — |
+| Supplier | ✓ | fornecedor (nome, RN) — `@@unique[tenantId, document]` |
 | PaymentMethod | ✓ | configurável por tenant (dinheiro, PIX…) |
 | PriceTable | ✓ | pode ter `storeId` opcional → ver 2.2 |
 | ProductPrice | ✓ | filha de PriceTable (via priceTableId); **sem** storeId direto |
@@ -109,8 +115,10 @@ tornar referência platform-level (decisão posterior, gera ADR).
 - Unique: `StockBalance(tenantId, storeId, productId)`
 - Unique: `ProductBarcode(tenantId, value)`
 - Unique: `SyncQueue(tenantId, clientOperationId)`
+- Unique: `Supplier(tenantId, document)`
 - Composto: `StockMovement(tenantId, storeId, productId, createdAt)`
 - Composto: `Sale(tenantId, storeId, createdAt)`
+- Composto: `Purchase(tenantId, storeId, createdAt)`
 - Composto: `AuditLog(tenantId, createdAt)`
 - Full (preço): `ProductPrice(priceTableId, productId)`
 

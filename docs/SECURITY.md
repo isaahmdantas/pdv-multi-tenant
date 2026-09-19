@@ -33,6 +33,7 @@ sales.create  sales.cancel  sales.discount  sales.refund
 cash.open  cash.close  cash.withdraw  cash.supply
 products.create  products.update  products.delete
 inventory.adjust  inventory.transfer
+purchases.manage
 fiscal.issue  fiscal.cancel
 reports.view  settings.manage
 pricing.manage  customers.manage

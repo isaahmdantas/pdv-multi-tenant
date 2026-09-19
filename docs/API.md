@@ -125,6 +125,11 @@ repouso** — nenhuma emissão ocorre no MVP.
 | GET/POST | `/api/v1/promotions` | promoções | `pricing.manage` |
 | GET | `/api/v1/inventory/balance?productId=` | saldo da unidade | autenticado |
 | POST | `/api/v1/inventory/adjust` | ajuste (com motivo) | `inventory.adjust` |
+| GET/POST | `/api/v1/suppliers` | fornecedores (`search`, `includeInactive`) | `purchases.manage` (POST) |
+| GET/PUT/DELETE | `/api/v1/suppliers/:id` | consultar/atualizar/desativar (soft → INACTIVE) fornecedor | `purchases.manage` |
+| GET/POST | `/api/v1/purchases` | pedidos de compra (`storeId`, `status`)/criar pedido | `purchases.manage` (POST) |
+| GET/PUT/DELETE | `/api/v1/purchases/:id` | consultar/editar/cancelar pedido (DELETE = cancelamento) | `purchases.manage` |
+| POST | `/api/v1/purchases/:id/receive` | entrada do pedido (estoque + custo/lote/validade) | `purchases.manage` |
 | GET/POST | `/api/v1/cash-registers` | caixas | `cash.close`/admin |
 | POST | `/api/v1/cash-sessions/open` | abre caixa | `cash.open` |
 | POST | `/api/v1/cash-sessions/:id/withdraw` | sangria | `cash.withdraw` |

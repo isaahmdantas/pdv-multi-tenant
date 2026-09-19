@@ -141,13 +141,13 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F9-01 | Fornecedores | ⬜ | F2 | - | - | - |
-| F9-02 | Pedido de compra | ⬜ | F9-01 | - | - | - |
-| F9-03 | Entrada | ⬜ | F9-02 | - | - | - |
-| F9-04 | Custo | ⬜ | F9-03 | - | - | - |
-| F9-05 | Lote | ⬜ | F9-03 | - | - | - |
-| F9-06 | Validade | ⬜ | F9-03 | - | - | - |
-| F9-07 | Integração estoque | ⬜ | F9-03, F8 | - | - | - |
+| F9-01 | Fornecedores | ✅ | F2 | `prisma/schema.prisma` (Supplier), `src/modules/purchases/services/supplier-service.ts`, `repositories/supplier-repository.ts`, `src/app/api/v1/suppliers/**`, `src/components/purchases/supplier-create-form.tsx` | unit + integração; A×B | TenantScoped (`@@unique[tenantId,document]`); 409 SUPPLIER_DOCUMENT_TAKEN/EMAIL_TAKEN; soft delete INACTIVE; auditoria SUPPLIER_CREATED/UPDATED/DEACTIVATED |
+| F9-02 | Pedido de compra | ✅ | F9-01 | `prisma/schema.prisma` (Purchase+PurchaseItem), `src/modules/purchases/services/purchase-service.ts`, `repositories/purchase-repository.ts`, `src/app/api/v1/purchases/**`, `src/components/purchases/purchase-create-form.tsx`, `src/app/compras/page.tsx` | unit + integração | StoreScoped; `status` ORDERED→RECEIVED/CANCELLED; itens únicos por produto; auditoria PURCHASE_CREATED/UPDATED/CANCELLED |
+| F9-03 | Entrada | ✅ | F9-02 | `PurchaseService.receive`, `src/app/api/v1/purchases/[id]/receive/route.ts`, `src/components/purchases/purchase-actions.tsx` | integração | apenas ORDERED (409 PURCHASE_NOT_RECEIVABLE); sem recebimento parcial no MVP |
+| F9-04 | Custo | ✅ | F9-03 | `PurchaseItem.unitCost/totalCost`, `Purchase.totalAmount` (Σ) | integração | Decimal; recalculado na edição de itens |
+| F9-05 | Lote | ✅ | F9-03 | `PurchaseItem.batchNumber` (pedido + override na entrada) | integração | sem saldo por lote no MVP (nota em PURCHASES.md §1) |
+| F9-06 | Validade | ✅ | F9-03 | `PurchaseItem.expiryDate` (pedido + override na entrada) | integração | coerce Date no schema/UI |
+| F9-07 | Integração estoque | ✅ | F9-03, F8 | `StockBalanceRepository.applyDelta` + `tx.stockMovement` IN `referenceType:PURCHASE` dentro de `receive` (transação) | integração (7/8) | conversão central → unidade base; `400 UNIT_CONVERSION_MISSING` com rollback; ADR-0005 |
 
 ## FASE 10 — CAIXA
 
@@ -340,6 +340,8 @@
 - ✅ **FASE 1** — Fundação concluída (Next/Tailwind/shadcn/Prisma 7/Vitest).
 - ✅ **FASE 2** — Multi-tenant concluída (models, contexto, isolamento, autorização, auditoria,
   testes A×B). Troca de unidade (rota HTTP) integra na F3 (Auth.js).
+- ✅ **FASE 9** — Compras concluída (fornecedores, pedido, entrada, custo, lote, validade,
+  integração estoque). Referência: `docs/PURCHASES.md`.
 - ⬜ Demais fases — não iniciadas, conforme numeração fixa do Prompt Mestre.
 - ❌ **F14-03/04/05/07** — bloqueadas por dependência externa (SEFAZ/certificado); abstrações
   serão implementadas na fase, sem simular funcionamento real.

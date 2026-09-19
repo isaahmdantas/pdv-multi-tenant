@@ -106,6 +106,24 @@ export default async function DashboardPage() {
         >
           Categorias de cliente
         </Link>
+        <Link
+          href="/precos"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Preços
+        </Link>
+        <Link
+          href="/estoque"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Estoque
+        </Link>
+        <Link
+          href="/compras"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Compras
+        </Link>
       </nav>
     </main>
   );

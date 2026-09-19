@@ -51,6 +51,9 @@ model Tenant {
   stockTransferItems StockTransferItem[]
   inventories        Inventory[]
   inventoryItems     InventoryItem[]
+  suppliers          Supplier[]
+  purchases          Purchase[]
+  purchaseItems      PurchaseItem[]
 
   @@index([slug])
 }
@@ -93,6 +96,7 @@ model Store {
   sourceTransfers      StockTransfer[] @relation("StockTransferSource")
   destinationTransfers StockTransfer[] @relation("StockTransferDestination")
   inventories          Inventory[]
+  purchases            Purchase[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -311,6 +315,7 @@ model UnitOfMeasure {
   conversionsTo      UnitConversion[]    @relation("UnitConversionTo")
   stockMovements     StockMovement[]
   stockTransferItems StockTransferItem[]
+  purchaseItems      PurchaseItem[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -361,6 +366,7 @@ model Product {
   stockMovements     StockMovement[]
   stockTransferItems StockTransferItem[]
   inventoryItems     InventoryItem[]
+  purchaseItems      PurchaseItem[]
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -651,4 +657,90 @@ model InventoryItem {
   @@unique([inventoryId, productId])
   @@index([inventoryId])
   @@index([productId])
+}
+
+// ——— Fase 9 — Compras ———
+
+// Fornecedor do tenant (TenantScoped). `document` (CNPJ/CPF) é único por tenant;
+// opcional para fornecedores informais. Isolado por repositório (tenantId).
+model Supplier {
+  id        String   @id @default(cuid(2))
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  document  String?
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  zipCode   String?
+  notes     String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases Purchase[]
+
+  @@unique([tenantId, document])
+  @@index([tenantId])
+  @@index([tenantId, name])
+}
+
+// Pedido de compra (StoreScoped). `status`: ORDERED → RECEIVED | CANCELLED.
+// `totalAmount` = soma dos `totalCost` dos itens (custo da mercadoria, sem impostos).
+// Ao receber, os itens geram StockMovement IN com `referenceType = PURCHASE`
+// (integração estoque F8) e a compra passa a RECEIVED.
+model Purchase {
+  id         String     @id @default(cuid(2))
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  storeId    String
+  store      Store      @relation(fields: [storeId], references: [id])
+  supplierId String?
+  supplier   Supplier?  @relation(fields: [supplierId], references: [id])
+  status     String     @default("ORDERED")
+  totalAmount Decimal   @default(0)
+  notes      String?
+  expectedAt DateTime?
+  receivedAt DateTime?
+  createdBy  String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  items PurchaseItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, storeId])
+  @@index([tenantId, status])
+  @@index([tenantId, supplierId])
+}
+
+// Item do pedido (itens-filho: apenas `tenantId`, sem `storeId`). `quantity` na
+// unidade do pedido; ao receber, `unitOfMeasureId`/`quantityInUnit` gravam a unidade
+// efetiva e `quantity` na unidade base é o StockMovement (integração F8). `unitCost`
+// e `totalCost` = custo unitário/total da mercadoria (F9-04). `batchNumber` (lote,
+// F9-05) e `expiryDate` (validade, F9-06) registrados na entrada.
+model PurchaseItem {
+  id              String         @id @default(cuid(2))
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  purchaseId      String
+  purchase        Purchase       @relation(fields: [purchaseId], references: [id])
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  quantity        Decimal
+  quantityInUnit  Decimal?
+  unitOfMeasureId String?
+  unitOfMeasure   UnitOfMeasure? @relation(fields: [unitOfMeasureId], references: [id])
+  unitCost        Decimal
+  totalCost       Decimal
+  batchNumber     String?
+  expiryDate      DateTime?
+  createdAt       DateTime       @default(now())
+
+  @@unique([purchaseId, productId])
+  @@index([purchaseId])
+  @@index([productId])
+  @@index([tenantId])
 }
