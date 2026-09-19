@@ -109,17 +109,17 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F7-01 | PriceTable | ⬜ | F2 | - | - | - |
-| F7-02 | ProductPrice | ⬜ | F7-01 | - | - | - |
-| F7-03 | Preço padrão do produto | ⬜ | F7-02, F5 | - | - | - |
-| F7-04 | Preço por unidade | ⬜ | F7-02, F4 | - | - | - |
-| F7-05 | Preço por categoria de cliente | ⬜ | F7-02, F6 | - | - | - |
-| F7-06 | Preço unidade + categoria | ⬜ | F7-02 | - | - | - |
-| F7-07 | Preço por quantidade | ⬜ | F7-02 | - | - | - |
-| F7-08 | Promoções | ⬜ | F7-02 | - | - | - |
-| F7-09 | Prioridade (constante única) | ⬜ | F7-01 | - | - | - |
-| F7-10 | PricingService | ⬜ | F7-09 | - | - | - |
-| F7-11 | Testes do motor de preços | ⬜ | F7-10 | - | - | - |
+| F7-01 | PriceTable | ✅ | F2 | `prisma/schema.prisma` (PriceTable + `defaultPrice`), `src/modules/pricing/services/price-table-service.ts`, `src/modules/pricing/repositories/price-table-repository.ts`, `src/app/api/v1/price-tables/**`, `src/app/precos/page.tsx` | unit + integração; A×B | CRUD scoped; `@@unique[tenantId,name]`; auditoria PRICE_TABLE_CREATED/UPDATED/DEACTIVATED |
+| F7-02 | ProductPrice | ✅ | F7-01 | `prisma/schema.prisma` (ProductPrice), `src/modules/pricing/services/product-price-service.ts`, `src/modules/pricing/repositories/product-price-repository.ts`, `src/app/api/v1/price-tables/[id]/products/**` | unit + integração | preço por faixa de quantidade; 409 PRODUCT_PRICE_RANGE_CONFLICT em faixa sobreposta; auditoria PRODUCT_PRICE_CREATED/UPDATED/DELETED |
+| F7-03 | Preço padrão do produto | ✅ | F7-02, F5 | `PricingService.resolve` → regra 6 (`product.basePrice`), `PRICE_PRIORITY.PRODUCT_BASE_PRICE` | integração engine (caso 8) | fallback absoluto sem nenhuma tabela |
+| F7-04 | Preço por unidade | ✅ | F7-02, F4 | `PricingService.resolve` → regra 4 (`STORE_PRICE`, storeId, categoria null), `Store.defaultCustomerCategoryId` | integração engine (casos 3/6/7) | escopo unidade do tenant |
+| F7-05 | Preço por categoria de cliente | ✅ | F7-02, F6 | `PricingService.resolve` → regra 5 (`CATEGORY_PRICE`, storeId null); categoria anônima via `CustomerCategory.isDefault`/`Store.defaultCustomerCategoryId` | integração engine (caso 4) | venda anônima usa categoria padrão da unidade |
+| F7-06 | Preço unidade + categoria | ✅ | F7-02 | `PricingService.resolve` → regras 2/3 (`PRODUCT_CATEGORY_PRICE`/`CATEGORY_DEFAULT_PRICE` com `defaultPrice`) | integração engine (casos 2/3/5) | `defaultPrice` da tabela quando não há ProductPrice |
+| F7-07 | Preço por quantidade | ✅ | F7-02 | `ProductPrice.minimumQuantity/maximumQuantity` (faixa inclusiva); sem faixa = aplica-se | integração engine (caso 5) | faixas 1–9 / 10–49 / 50+ |
+| F7-08 | Promoções | ✅ | F7-02 | `prisma/schema.prisma` (Promotion), `src/modules/pricing/services/promotion-service.ts`, `src/modules/pricing/repositories/promotion-repository.ts`, `src/app/api/v1/promotions/**` | unit + integração | PERCENTAGE/FIXED; valida PERCENTAGE≤100; auditoria PROMOTION_CREATED/UPDATED/DEACTIVATED |
+| F7-09 | Prioridade (constante única) | ✅ | F7-01 | `src/modules/pricing/constants.ts` (`PRICE_PRIORITY`) | unit (schemas) | única fonte da ordem; regras 1–6 |
+| F7-10 | PricingService | ✅ | F7-09 | `src/modules/pricing/services/pricing-service.ts` (`resolve`) | integração engine | promoção > tabela produto+unidade+cat > unidade+cat > unidade > cat > basePrice; desempate priority→vigência→createdAt; histórico via `dateTime` |
+| F7-11 | Testes do motor de preços | ✅ | F7-10 | `src/test/integration/pricing-engine.test.ts`, `src/test/integration/pricing.test.ts`, `src/test/unit/pricing-schemas.test.ts` | `npx vitest run` (9/9 engine) | cases PRICING.md §6 1–9; congelamento na venda testado na F11 (SaleItem grava unitPrice/priceTableId/promotionId) |
 
 ## FASE 8 — ESTOQUE
 

@@ -1,0 +1,23 @@
+export const PRICE_PRIORITY = {
+  PROMOTION: 1,
+  PRODUCT_CATEGORY_PRICE: 2,
+  CATEGORY_DEFAULT_PRICE: 3,
+  STORE_PRICE: 4,
+  CATEGORY_PRICE: 5,
+  PRODUCT_BASE_PRICE: 6,
+} as const;
+
+export type PriceRule = keyof typeof PRICE_PRIORITY;
+
+export const PRICE_RULE_ORDER = {
+  PROMOTION: "RULE_1",
+  PRODUCT_CATEGORY_PRICE: "RULE_2",
+  CATEGORY_DEFAULT_PRICE: "RULE_3",
+  STORE_PRICE: "RULE_4",
+  CATEGORY_PRICE: "RULE_5",
+  PRODUCT_BASE_PRICE: "RULE_6",
+} as const;
+
+export const DISCOUNT_TYPE = ["PERCENTAGE", "FIXED"] as const;
+
+export type DiscountType = (typeof DISCOUNT_TYPE)[number];

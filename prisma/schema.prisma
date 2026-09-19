@@ -22,26 +22,29 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stores           Store[]
-  users            User[]
-  roles            Role[]
-  permissions      Permission[]
-  userRoles        UserRole[]
-  userStores       UserStore[]
-  rolePermissions  RolePermission[]
-  auditLogs        AuditLog[]
-  cashRegisters    CashRegister[]
-  terminals        Terminal[]
-  devices          Device[]
-  productCategories ProductCategory[]
-  productBrands     ProductBrand[]
-  unitOfMeasures    UnitOfMeasure[]
-  unitConversions   UnitConversion[]
-  products          Product[]
-  productBarcodes   ProductBarcode[]
-  productStores     ProductStore[]
+  stores             Store[]
+  users              User[]
+  roles              Role[]
+  permissions        Permission[]
+  userRoles          UserRole[]
+  userStores         UserStore[]
+  rolePermissions    RolePermission[]
+  auditLogs          AuditLog[]
+  cashRegisters      CashRegister[]
+  terminals          Terminal[]
+  devices            Device[]
+  productCategories  ProductCategory[]
+  productBrands      ProductBrand[]
+  unitOfMeasures     UnitOfMeasure[]
+  unitConversions    UnitConversion[]
+  products           Product[]
+  productBarcodes    ProductBarcode[]
+  productStores      ProductStore[]
   customerCategories CustomerCategory[]
   customers          Customer[]
+  priceTables        PriceTable[]
+  productPrices      ProductPrice[]
+  promotions         Promotion[]
 
   @@index([slug])
 }
@@ -50,33 +53,35 @@ model Store {
   id        String   @id @default(cuid(2))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
-name      String
+  name      String
   code      String
   status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  document          String?
-  phone             String?
-  email             String?
-  address           String?
-  city              String?
-  state             String?
-  zipCode           String?
-  timezone          String   @default("America/Sao_Paulo")
-  fiscalState       String?
-  fiscalEnvironment String?
-  fiscalEnabled     Boolean  @default(false)
-  fiscalSeries      String?
+  document                  String?
+  phone                     String?
+  email                     String?
+  address                   String?
+  city                      String?
+  state                     String?
+  zipCode                   String?
+  timezone                  String            @default("America/Sao_Paulo")
+  fiscalState               String?
+  fiscalEnvironment         String?
+  fiscalEnabled             Boolean           @default(false)
+  fiscalSeries              String?
   defaultCustomerCategoryId String?
   defaultCustomerCategory   CustomerCategory? @relation("StoreDefaultCategory", fields: [defaultCustomerCategoryId], references: [id])
 
-  userStores       UserStore[]
-  auditLogs        AuditLog[]
-  cashRegisters    CashRegister[]
-  terminals        Terminal[]
-  devices          Device[]
-  productStores    ProductStore[]
+  userStores    UserStore[]
+  auditLogs     AuditLog[]
+  cashRegisters CashRegister[]
+  terminals     Terminal[]
+  devices       Device[]
+  productStores ProductStore[]
+  priceTables   PriceTable[]
+  promotions    Promotion[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -184,13 +189,13 @@ model Permission {
 }
 
 model RolePermission {
-  id           String  @id @default(cuid(2))
+  id           String     @id @default(cuid(2))
   tenantId     String
-  tenant       Tenant  @relation(fields: [tenantId], references: [id])
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
   roleId       String
   permissionId String
-  role         Role         @relation(fields: [roleId], references: [id])
-  permission   Permission   @relation(fields: [permissionId], references: [id])
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
 
   @@unique([roleId, permissionId])
   @@index([permissionId])
@@ -290,24 +295,24 @@ model UnitOfMeasure {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  products         Product[]        @relation("ProductBaseUnit")
-  conversionsFrom  UnitConversion[] @relation("UnitConversionFrom")
-  conversionsTo    UnitConversion[] @relation("UnitConversionTo")
+  products        Product[]        @relation("ProductBaseUnit")
+  conversionsFrom UnitConversion[] @relation("UnitConversionFrom")
+  conversionsTo   UnitConversion[] @relation("UnitConversionTo")
 
   @@unique([tenantId, code])
   @@index([tenantId])
 }
 
 model UnitConversion {
-  id         String  @id @default(cuid(2))
+  id         String        @id @default(cuid(2))
   tenantId   String
-  tenant     Tenant  @relation(fields: [tenantId], references: [id])
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
   fromUnitId String
   toUnitId   String
   factor     Decimal
   fromUnit   UnitOfMeasure @relation("UnitConversionFrom", fields: [fromUnitId], references: [id])
   toUnit     UnitOfMeasure @relation("UnitConversionTo", fields: [toUnitId], references: [id])
-  createdAt  DateTime @default(now())
+  createdAt  DateTime      @default(now())
 
   @@unique([tenantId, fromUnitId, toUnitId])
   @@index([tenantId])
@@ -332,11 +337,13 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  category    ProductCategory?  @relation(fields: [categoryId], references: [id])
-  brand       ProductBrand?     @relation(fields: [brandId], references: [id])
-  baseUnit    UnitOfMeasure     @relation("ProductBaseUnit", fields: [baseUnitId], references: [id])
-  barcodes    ProductBarcode[]
-  storeLinks  ProductStore[]
+  category   ProductCategory? @relation(fields: [categoryId], references: [id])
+  brand      ProductBrand?    @relation(fields: [brandId], references: [id])
+  baseUnit   UnitOfMeasure    @relation("ProductBaseUnit", fields: [baseUnitId], references: [id])
+  barcodes   ProductBarcode[]
+  storeLinks ProductStore[]
+  priceRows  ProductPrice[]
+  promotions Promotion[]
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -384,17 +391,19 @@ model CustomerCategory {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  customers Customer[]
-  storeDefault Store[] @relation("StoreDefaultCategory")
+  customers    Customer[]
+  storeDefault Store[]      @relation("StoreDefaultCategory")
+  priceTables  PriceTable[]
+  promotions   Promotion[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
 }
 
 model Customer {
-  id                 String   @id @default(cuid(2))
+  id                 String    @id @default(cuid(2))
   tenantId           String
-  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  tenant             Tenant    @relation(fields: [tenantId], references: [id])
   name               String
   document           String?
   email              String?
@@ -402,11 +411,11 @@ model Customer {
   birthday           DateTime?
   notes              String?
   customerCategoryId String?
-  creditLimit        Decimal  @default(0)
-  loyaltyPoints      Int      @default(0)
-  status             String   @default("ACTIVE")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  creditLimit        Decimal   @default(0)
+  loyaltyPoints      Int       @default(0)
+  status             String    @default("ACTIVE")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   category CustomerCategory? @relation(fields: [customerCategoryId], references: [id])
 
@@ -414,4 +423,73 @@ model Customer {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([tenantId, name])
+}
+
+// —— Fase 7 — Preços ———
+
+model PriceTable {
+  id                 String            @id @default(cuid(2))
+  tenantId           String
+  tenant             Tenant            @relation(fields: [tenantId], references: [id])
+  name               String
+  description        String?
+  storeId            String?
+  store              Store?            @relation(fields: [storeId], references: [id])
+  customerCategoryId String?
+  customerCategory   CustomerCategory? @relation(fields: [customerCategoryId], references: [id])
+  defaultPrice       Decimal           @default(0)
+  priority           Int               @default(0)
+  validFrom          DateTime          @default(now())
+  validUntil         DateTime?
+  active             Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  productPrices ProductPrice[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, storeId])
+}
+
+model ProductPrice {
+  id              String     @id @default(cuid(2))
+  tenantId        String
+  tenant          Tenant     @relation(fields: [tenantId], references: [id])
+  priceTableId    String
+  priceTable      PriceTable @relation(fields: [priceTableId], references: [id])
+  productId       String
+  product         Product    @relation(fields: [productId], references: [id])
+  unitPrice       Decimal
+  minimumQuantity Decimal?
+  maximumQuantity Decimal?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([priceTableId])
+  @@index([productId])
+  @@index([tenantId])
+}
+
+model Promotion {
+  id                 String            @id @default(cuid(2))
+  tenantId           String
+  tenant             Tenant            @relation(fields: [tenantId], references: [id])
+  storeId            String?
+  store              Store?            @relation(fields: [storeId], references: [id])
+  productId          String?
+  product            Product?          @relation(fields: [productId], references: [id])
+  customerCategoryId String?
+  customerCategory   CustomerCategory? @relation(fields: [customerCategoryId], references: [id])
+  discountType       String // PERCENTAGE | FIXED
+  discountValue      Decimal
+  validFrom          DateTime          @default(now())
+  validUntil         DateTime?
+  active             Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, storeId])
+  @@index([tenantId, productId])
 }

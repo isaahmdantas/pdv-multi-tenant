@@ -10,6 +10,7 @@
 id, tenantId, name, description,
 storeId?          (null = vale para o tenant inteiro)
 customerCategoryId?  (null = vale para qualquer categoria)
+defaultPrice (Decimal)   // preço padrão da tabela (regra 3)
 priority, validFrom, validUntil?, active
 ```
 
@@ -74,8 +75,22 @@ Empates na mesma regra: vence a de **maior prioridade numérica da tabela**; dep
 **vigência ativa mais recente**; depois `createdAt` mais recente. Quantidade: entre
 `minimumQuantity` e `maximumQuantity` (inclusivos); sem faixa = aplica-se à quantidade.
 
-Anônimo: `customerCategoryId` ausente → usa `CustomerCategory.isDefault` mais o padrão
-da unidade (`Store.defaultCustomerCategoryId` se existir) — resolução documentada aqui.
+Anônimo: resolução da categoria quando `customerCategoryId` ausente, nesta ordem
+(implementada em `PricingService.resolveCategoryId`):
+
+1. `customerCategoryId` explícito no request (se veio do cliente na venda).
+2. Categoria ativa do `Customer` (`categoryId`) quando `customerId` é informado.
+3. `Store.defaultCustomerCategoryId` da unidade atual.
+4. `CustomerCategory.isDefault` ativa do tenant.
+5. Sem nenhuma → categoria `null` (tabelas sem restrição de categoria).
+
+A mesma resolução vale para promoções: a promoção só se aplica se a categoria
+resolvida estiver no escopo dela (idêntica) ou se a promoção não tiver categoria
+restrita (vale para todas).
+
+Histórico: `PricingService.resolve` aceita `dateTime` e resolve determinísticamente
+usando a vigência (`validFrom`/`validUntil`) na data informada — permite re-preço
+retrospectivo sem re-resolver vendas (que guardam o valor congelado, ver §4).
 
 ## 4. Vendas não dependem da tabela atual
 
