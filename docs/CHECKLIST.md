@@ -125,17 +125,17 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F8-01 | StockBalance | ⬜ | F2, F5 | - | - | - |
-| F8-02 | StockMovement | ⬜ | F8-01 | - | - | - |
-| F8-03 | Entradas | ⬜ | F8-02 | - | - | - |
-| F8-04 | Saídas | ⬜ | F8-02 | - | - | - |
-| F8-05 | Ajustes | ⬜ | F8-02 | - | - | - |
-| F8-06 | Inventário | ⬜ | F8-02 | - | - | - |
-| F8-07 | Transferências entre unidades | ⬜ | F8-02, F4 | - | - | - |
-| F8-08 | Estoque mínimo | ⬜ | F8-01, F5 | - | - | - |
-| F8-09 | Estoque máximo | ⬜ | F8-01, F5 | - | - | - |
-| F8-10 | Alertas | ⬜ | F8-08, F8-09 | - | - | - |
-| F8-11 | Concorrência (optimistic/atômico) | ⬜ | F8-01 | - | - | - |
+| F8-01 | StockBalance | ✅ | F2, F5 | `prisma/schema.prisma` (StockBalance), `src/modules/inventory/repositories/stock-balance-repository.ts`, `src/modules/inventory/services/stock-service.ts` | unit + integração; A×B | saldo = tenant+store+product única; `quantity`/`reservedQuantity`/`availableQuantity`/`version` (`@@unique[tenantId,storeId,productId]`); reserva futura preparada no schema, fluxo na F11 (ADR-0006) |
+| F8-02 | StockMovement | ✅ | F8-01 | `prisma/schema.prisma` (StockMovement), `src/modules/inventory/repositories/stock-movement-repository.ts` | integração | IN/OUT/ADJUST/TRANSFER_IN/TRANSFER_OUT; `quantity` na unidade base + `quantityInUnit`/`unitOfMeasureId` + `balanceAfter` + `referenceType/referenceId`; índice [tenantId,storeId,productId,createdAt] |
+| F8-03 | Entradas | ✅ | F8-02 | `StockService.stockIn`, `src/app/api/v1/inventory/stock-in/route.ts`, `src/components/inventory/stock-movement-form.tsx` | integração (1/3/4) | conversão central `UnitConversion` → unidade base; auditoria STOCK_IN |
+| F8-04 | Saídas | ✅ | F8-02 | `StockService.stockOut`, `src/app/api/v1/inventory/stock-out/route.ts` | integração (1/2) | guarda atômica não-negativo; 409 STOCK_INSUFFICIENT; auditoria STOCK_OUT |
+| F8-05 | Ajustes | ✅ | F8-02 | `StockService.adjust`, `src/app/api/v1/inventory/adjust/route.ts`, `src/components/inventory/stock-adjust-form.tsx` | integração (5) | Δ assinado ≠0; auditoria STOCK_ADJUSTED |
+| F8-06 | Inventário | ✅ | F8-02 | `InventoryService.open/list/get/close` (Inventory+InventoryItem), `src/app/api/v1/inventory/counts/**`, `src/components/inventory/inventory-open-form.tsx`, `inventory-close-form.tsx` | integração (10–12) | `difference = counted - expected`; fechar aplica ADJUST ref INVENTORY; 409 INVENTORY_OPEN_EXISTS/ALREADY_CLOSED; auditoria INVENTORY_CREATED/CLOSED |
+| F8-07 | Transferências entre unidades | ✅ | F8-02, F4 | `prisma/schema.prisma` (StockTransfer+StockTransferItem multiproduto), `StockService.transfer` (atômica), `src/app/api/v1/inventory/transfers/route.ts`, `src/components/inventory/transfer-form.tsx` | integração (7–9) | valida saldo de todos os itens antes; rollback total em falha; origem≠destino (400 SAME_STORE_TRANSFER); `status` preparado p/ SOLICITADA→SEPARADA→EXPEDIDA→RECEBIDA; auditoria STOCK_TRANSFER |
+| F8-08 | Estoque mínimo | ✅ | F8-01, F5 | `ProductStore.minStock` + `StockService.setMinMax` | integração (6) | upsert ProductStore; level LOW quando available≤min>0 |
+| F8-09 | Estoque máximo | ✅ | F8-01, F5 | `ProductStore.maxStock` + `StockService.setMinMax` | integração (6) | level HIGH quando available≥max>0 |
+| F8-10 | Alertas | ✅ | F8-08, F8-09 | `StockService.alerts`, `src/app/api/v1/inventory/alerts/route.ts`, `/estoque` | integração (6), UI | computed (LOW/OK/HIGH); sem tabela nova |
+| F8-11 | Concorrência (optimistic/atômico) | ✅ | F8-01 | `applyDelta` (update atômico condicional + `version`), `src/test/integration/stock-engine.test.ts` | integração engine (5) | 100 IN + 200 OUT concorrentes sem perda/negativo; optimistic `expectedVersion` → VERSION_CONFLICT; ADR-0005 (sem `FOR UPDATE`, portável → SQL Server) |
 
 ## FASE 9 — COMPRAS
 

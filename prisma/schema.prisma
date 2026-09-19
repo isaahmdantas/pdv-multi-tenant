@@ -45,6 +45,12 @@ model Tenant {
   priceTables        PriceTable[]
   productPrices      ProductPrice[]
   promotions         Promotion[]
+  stockBalances      StockBalance[]
+  stockMovements     StockMovement[]
+  stockTransfers     StockTransfer[]
+  stockTransferItems StockTransferItem[]
+  inventories        Inventory[]
+  inventoryItems     InventoryItem[]
 
   @@index([slug])
 }
@@ -74,14 +80,19 @@ model Store {
   defaultCustomerCategoryId String?
   defaultCustomerCategory   CustomerCategory? @relation("StoreDefaultCategory", fields: [defaultCustomerCategoryId], references: [id])
 
-  userStores    UserStore[]
-  auditLogs     AuditLog[]
-  cashRegisters CashRegister[]
-  terminals     Terminal[]
-  devices       Device[]
-  productStores ProductStore[]
-  priceTables   PriceTable[]
-  promotions    Promotion[]
+  userStores           UserStore[]
+  auditLogs            AuditLog[]
+  cashRegisters        CashRegister[]
+  terminals            Terminal[]
+  devices              Device[]
+  productStores        ProductStore[]
+  priceTables          PriceTable[]
+  promotions           Promotion[]
+  stockBalances        StockBalance[]
+  stockMovements       StockMovement[]
+  sourceTransfers      StockTransfer[] @relation("StockTransferSource")
+  destinationTransfers StockTransfer[] @relation("StockTransferDestination")
+  inventories          Inventory[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -295,9 +306,11 @@ model UnitOfMeasure {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  products        Product[]        @relation("ProductBaseUnit")
-  conversionsFrom UnitConversion[] @relation("UnitConversionFrom")
-  conversionsTo   UnitConversion[] @relation("UnitConversionTo")
+  products           Product[]           @relation("ProductBaseUnit")
+  conversionsFrom    UnitConversion[]    @relation("UnitConversionFrom")
+  conversionsTo      UnitConversion[]    @relation("UnitConversionTo")
+  stockMovements     StockMovement[]
+  stockTransferItems StockTransferItem[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -337,13 +350,17 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  category   ProductCategory? @relation(fields: [categoryId], references: [id])
-  brand      ProductBrand?    @relation(fields: [brandId], references: [id])
-  baseUnit   UnitOfMeasure    @relation("ProductBaseUnit", fields: [baseUnitId], references: [id])
-  barcodes   ProductBarcode[]
-  storeLinks ProductStore[]
-  priceRows  ProductPrice[]
-  promotions Promotion[]
+  category           ProductCategory?    @relation(fields: [categoryId], references: [id])
+  brand              ProductBrand?       @relation(fields: [brandId], references: [id])
+  baseUnit           UnitOfMeasure       @relation("ProductBaseUnit", fields: [baseUnitId], references: [id])
+  barcodes           ProductBarcode[]
+  storeLinks         ProductStore[]
+  priceRows          ProductPrice[]
+  promotions         Promotion[]
+  stockBalances      StockBalance[]
+  stockMovements     StockMovement[]
+  stockTransferItems StockTransferItem[]
+  inventoryItems     InventoryItem[]
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -373,6 +390,8 @@ model ProductStore {
   productId String
   product   Product  @relation(fields: [productId], references: [id])
   status    String   @default("ACTIVE")
+  minStock  Decimal  @default(0)
+  maxStock  Decimal  @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -492,4 +511,144 @@ model Promotion {
   @@index([tenantId])
   @@index([tenantId, storeId])
   @@index([tenantId, productId])
+}
+
+// —— Fase 8 — Estoque ———
+
+// Saldo de estoque por unidade. `quantity` é o estoque físico; `reservedQuantity`
+// está preparado para reserva de estoque futura (fluxo PDV/vendas) e NÃO é
+// movimentado por StockMovement; `availableQuantity = quantity - reservedQuantity`.
+// Concorrência (ADR-0005): updates atômicos condicionais + `version` (optimistic),
+// nunca SELECT ... FOR UPDATE.
+model StockBalance {
+  id                String   @id @default(cuid(2))
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id])
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id])
+  quantity          Decimal  @default(0)
+  reservedQuantity  Decimal  @default(0)
+  availableQuantity Decimal  @default(0)
+  version           Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, storeId, productId])
+  @@index([tenantId])
+  @@index([tenantId, storeId])
+  @@index([productId])
+}
+
+// Movimentação de estoque (histórico por unidade). `quantity` é sempre na unidade
+// base do produto; `quantityInUnit` + `unitOfMeasureId` guardam a unidade em que o
+// movimento foi efetivamente registrado (ex.: entrada 2 CX → base 24 UN).
+model StockMovement {
+  id              String         @id @default(cuid(2))
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  storeId         String
+  store           Store          @relation(fields: [storeId], references: [id])
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  type            String // IN | OUT | ADJUST | TRANSFER_IN | TRANSFER_OUT
+  quantity        Decimal
+  quantityInUnit  Decimal?
+  unitOfMeasureId String?
+  unitOfMeasure   UnitOfMeasure? @relation(fields: [unitOfMeasureId], references: [id])
+  balanceAfter    Decimal
+  reason          String?
+  referenceType   String? // SALE | PURCHASE | INVENTORY | TRANSFER
+  referenceId     String?
+  createdBy       String?
+  createdAt       DateTime       @default(now())
+
+  @@index([tenantId, storeId, productId, createdAt])
+  @@index([tenantId])
+  @@index([tenantId, productId])
+}
+
+// Transferência entre unidades com múltiplos produtos (itens). Concluída em uma
+// única transação atômica na F8; `status` está preparado para evolução futura de
+// workflow SOLICITADA → SEPARADA → EXPEDIDA → RECEBIDA.
+model StockTransfer {
+  id                 String    @id @default(cuid(2))
+  tenantId           String
+  tenant             Tenant    @relation(fields: [tenantId], references: [id])
+  storeId            String
+  store              Store     @relation("StockTransferSource", fields: [storeId], references: [id])
+  destinationStoreId String
+  destinationStore   Store     @relation("StockTransferDestination", fields: [destinationStoreId], references: [id])
+  status             String    @default("COMPLETED")
+  reason             String?
+  createdBy          String?
+  createdAt          DateTime  @default(now())
+  completedAt        DateTime?
+
+  items StockTransferItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, storeId])
+  @@index([tenantId, destinationStoreId])
+}
+
+model StockTransferItem {
+  id              String         @id @default(cuid(2))
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  transferId      String
+  transfer        StockTransfer  @relation(fields: [transferId], references: [id])
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  quantity        Decimal
+  quantityInUnit  Decimal?
+  unitOfMeasureId String?
+  unitOfMeasure   UnitOfMeasure? @relation(fields: [unitOfMeasureId], references: [id])
+  createdAt       DateTime       @default(now())
+
+  @@unique([transferId, productId])
+  @@index([transferId])
+  @@index([productId])
+}
+
+// Inventário (contagem de estoque). OPEN enquanto conta; ao fechar grava
+// `difference = countedQuantity - expectedQuantity` e aplica o delta como ADJUST
+// referenciando o inventário.
+model Inventory {
+  id         String    @id @default(cuid(2))
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  storeId    String
+  store      Store     @relation(fields: [storeId], references: [id])
+  status     String    @default("OPEN")
+  notes      String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+
+  items InventoryItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, storeId])
+}
+
+model InventoryItem {
+  id               String    @id @default(cuid(2))
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  inventoryId      String
+  inventory        Inventory @relation(fields: [inventoryId], references: [id])
+  productId        String
+  product          Product   @relation(fields: [productId], references: [id])
+  expectedQuantity Decimal
+  countedQuantity  Decimal?
+  difference       Decimal?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([inventoryId, productId])
+  @@index([inventoryId])
+  @@index([productId])
 }

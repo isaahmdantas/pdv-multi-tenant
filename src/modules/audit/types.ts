@@ -60,6 +60,12 @@ export const AUDIT_ACTIONS = [
   "PROMOTION_CREATED",
   "PROMOTION_UPDATED",
   "PROMOTION_DEACTIVATED",
+  "STOCK_IN",
+  "STOCK_OUT",
+  "STOCK_MIN_MAX_UPDATED",
+  "STOCK_TRANSFER",
+  "INVENTORY_CREATED",
+  "INVENTORY_CLOSED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
