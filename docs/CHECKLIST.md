@@ -153,15 +153,15 @@
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F10-01 | Cadastro (CashRegister) | ⬜ | F4 | - | - | - |
-| F10-02 | Abertura | ⬜ | F10-01 | - | - | - |
-| F10-03 | Suprimento | ⬜ | F10-02 | - | - | - |
-| F10-04 | Sangria | ⬜ | F10-02 | - | - | - |
-| F10-05 | Movimentações | ⬜ | F10-03, F10-04 | - | - | - |
-| F10-06 | Fechamento | ⬜ | F10-02 | - | - | - |
-| F10-07 | Conferência | ⬜ | F10-06 | - | - | - |
-| F10-08 | Diferença (sobra/falta/exato) | ⬜ | F10-07 | - | - | - |
-| F10-09 | Relatório de caixa | ⬜ | F10-06 | - | - | - |
+| F10-01 | Cadastro (CashRegister) | ✅ | F4 | `CashRegister` (F4), endpoint `/api/v1/cash-registers` (F4) | F4 | reutilizado do F4 |
+| F10-02 | Abertura | ✅ | F10-01 | `prisma/schema.prisma` (CashSession), `src/modules/cash/services/cash-session-service.ts` (open), `src/app/api/v1/cash-sessions/route.ts`, `src/components/cash/open-cash-session-form.tsx`, `src/app/caixa/page.tsx` | unit + integração | 1 sessão OPEN por caixa (409 CASH_SESSION_ALREADY_OPEN); caixa deve ser da unidade (400 INVALID_CASH_REGISTER); movimento OPENING apenas quando valor inicial > 0; auditoria CASH_OPENED |
+| F10-03 | Suprimento | ✅ | F10-02 | `CashSessionService.supply`, `src/app/api/v1/cash-sessions/[id]/supply/route.ts`, `src/components/cash/cash-action-button.tsx` | integração | apenas OPEN (400 CASH_SESSION_NOT_OPEN); método obrigatório; auditoria CASH_SUPPLY |
+| F10-04 | Sangria | ✅ | F10-02 | `CashSessionService.withdraw`, `src/app/api/v1/cash-sessions/[id]/withdraw/route.ts`, `src/components/cash/cash-action-button.tsx` | integração | apenas OPEN; auditoria CASH_WITHDRAWAL |
+| F10-05 | Movimentações | ✅ | F10-03, F10-04 | `prisma/schema.prisma` (CashMovement), `src/modules/cash/repositories/cash-movement-repository.ts`, `CashSessionService.getMovements`, `src/components/cash/movements-list.tsx` | unit (schema) + integração | tipos OPENING/SALE/SUPPLY/WITHDRAW/CLOSING/ADJUSTMENT; SALE reservado p/ F11 |
+| F10-06 | Fechamento | ✅ | F10-02 | `CashSessionService.close`, `src/app/api/v1/cash-sessions/[id]/close/route.ts`, `src/components/cash/close-cash-session-form.tsx` | integração | apenas OPEN; gera movimento CLOSING com `difference`; auditoria CASH_CLOSED |
+| F10-07 | Conferência | ✅ | F10-06 | `close` { countedByMethod }, `src/components/cash/close-cash-session-form.tsx` | integração | conferência por método de pagamento (≥1 método informado) |
+| F10-08 | Diferença (sobra/falta/exato) | ✅ | F10-07 | `close` { difference, classification } EXACT/SURPLUS/SHORTAGE | integração | expected = OPENING + SALE + SUPPLY − WITHDRAW |
+| F10-09 | Relatório de caixa | ✅ | F10-06 | GET `/api/v1/cash-sessions` (filtros status/caixa/período), `src/app/caixa/page.tsx` (resumo e listagem) | integração | permissão reports.view |
 
 ## FASE 11 — PDV
 
@@ -342,6 +342,8 @@
   testes A×B). Troca de unidade (rota HTTP) integra na F3 (Auth.js).
 - ✅ **FASE 9** — Compras concluída (fornecedores, pedido, entrada, custo, lote, validade,
   integração estoque). Referência: `docs/PURCHASES.md`.
+- ✅ **FASE 10** — Caixa concluída (abertura, suprimento, sangria, movimentações, fechamento
+  com conferência e classificação de diferença, relatório). Referência: `docs/CASH.md`.
 - ⬜ Demais fases — não iniciadas, conforme numeração fixa do Prompt Mestre.
 - ❌ **F14-03/04/05/07** — bloqueadas por dependência externa (SEFAZ/certificado); abstrações
   serão implementadas na fase, sem simular funcionamento real.

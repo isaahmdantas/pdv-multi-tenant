@@ -54,6 +54,8 @@ model Tenant {
   suppliers          Supplier[]
   purchases          Purchase[]
   purchaseItems      PurchaseItem[]
+  cashSessions       CashSession[]
+  cashMovements      CashMovement[]
 
   @@index([slug])
 }
@@ -97,6 +99,8 @@ model Store {
   destinationTransfers StockTransfer[] @relation("StockTransferDestination")
   inventories          Inventory[]
   purchases            Purchase[]
+  cashSessions         CashSession[]
+  cashMovements        CashMovement[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -112,6 +116,8 @@ model CashRegister {
   status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  cashSessions CashSession[]
 
   @@unique([tenantId, storeId, name])
   @@index([tenantId, storeId])
@@ -743,4 +749,61 @@ model PurchaseItem {
   @@index([purchaseId])
   @@index([productId])
   @@index([tenantId])
+}
+
+// ——— Fase 10 — Caixa ———
+
+// Sessão de caixa (StoreScoped). `status`: OPEN → CLOSED.
+// `openingAmount` = valor inicial (suprimento inicial). `closingAmount` = soma esperada
+// (opening + vendas + suprimentos - sangrias). No fechamento, recebe `countedByMethod`
+// e calcula `difference` + `classification` (EXACT/SURPLUS/SHORTAGE).
+model CashSession {
+  id             String       @id @default(cuid(2))
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  storeId        String
+  store          Store        @relation(fields: [storeId], references: [id])
+  cashRegisterId String
+  cashRegister   CashRegister @relation(fields: [cashRegisterId], references: [id])
+  openedBy       String
+  status         String       @default("OPEN")
+  openingAmount  Decimal      @default(0)
+  closingAmount  Decimal?
+  difference     Decimal?
+  classification String?      // EXACT | SURPLUS | SHORTAGE
+  openedAt       DateTime     @default(now())
+  closedAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  movements CashMovement[]
+
+  @@index([tenantId, storeId])
+  @@index([tenantId, storeId, status])
+  @@index([tenantId, cashRegisterId])
+}
+
+// Movimentação de caixa (StoreScoped). `type`: OPENING | SALE | SUPPLY | WITHDRAW | CLOSING | ADJUSTMENT.
+// `referenceType`/`referenceId` ligam a Sale, Purchase, etc. (futuro).
+// `methodCode` (CASH, PIX, CREDIT, DEBIT, VOUCHER) para movimentos de entrada/saída.
+model CashMovement {
+  id              String   @id @default(cuid(2))
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id])
+  cashSessionId   String
+  cashSession     CashSession @relation(fields: [cashSessionId], references: [id])
+  type            String
+  methodCode      String?
+  amount          Decimal
+  notes           String?
+  referenceType   String?
+  referenceId     String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId, storeId])
+  @@index([tenantId, cashSessionId])
+  @@index([tenantId, cashSessionId, type])
 }

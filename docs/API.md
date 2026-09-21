@@ -130,11 +130,13 @@ repouso** — nenhuma emissão ocorre no MVP.
 | GET/POST | `/api/v1/purchases` | pedidos de compra (`storeId`, `status`)/criar pedido | `purchases.manage` (POST) |
 | GET/PUT/DELETE | `/api/v1/purchases/:id` | consultar/editar/cancelar pedido (DELETE = cancelamento) | `purchases.manage` |
 | POST | `/api/v1/purchases/:id/receive` | entrada do pedido (estoque + custo/lote/validade) | `purchases.manage` |
-| GET/POST | `/api/v1/cash-registers` | caixas | `cash.close`/admin |
-| POST | `/api/v1/cash-sessions/open` | abre caixa | `cash.open` |
-| POST | `/api/v1/cash-sessions/:id/withdraw` | sangria | `cash.withdraw` |
-| POST | `/api/v1/cash-sessions/:id/supply` | suprimento | `cash.supply` |
-| POST | `/api/v1/cash-sessions/:id/close` | fecha caixa (com saldo contado) | `cash.close` |
+| GET/POST | `/api/v1/cash-registers` | caixas | `settings.manage` |
+| GET | `/api/v1/cash-sessions` | lista sessões (`storeId`, `status`, `cashRegisterId`, `fromDate`, `toDate`) | `reports.view` |
+| POST | `/api/v1/cash-sessions` | abre caixa `{ cashRegisterId, openingAmount?, notes? }` | `cash.open` |
+| GET | `/api/v1/cash-sessions/:id` | sessão com caixa, loja e movimentações | `reports.view` |
+| POST | `/api/v1/cash-sessions/:id/supply` | suprimento `{ amount, methodCode, notes? }` | `cash.supply` |
+| POST | `/api/v1/cash-sessions/:id/withdraw` | sangria `{ amount, methodCode, notes? }` | `cash.withdraw` |
+| POST | `/api/v1/cash-sessions/:id/close` | fecha caixa `{ countedByMethod }` | `cash.close` |
 | POST | `/api/v1/sales` | cria venda (online/offline, idempotente por clientOperationId) | `sales.create` |
 | POST | `/api/v1/sales/:id/cancel` | cancelamento | `sales.cancel` |
 | POST | `/api/v1/sales/:id/refund` | estorno | `sales.refund` |
@@ -169,8 +171,11 @@ Resposta: `201 { sale: {...}, items: [...], change: "10.00" }` (troco apenas CAS
 **POST /api/v1/cash-sessions/:id/close**:
 
 ```json
-{ "countedByMethod": { "CASH": "1450.00" } }
+{ "countedByMethod": { "CASH": "1450.00", "PIX": "200.00" } }
 ```
+
+Resultado: sessão `CLOSED` com `closingAmount` (esperado), `difference`
+(contado − esperado) e `classification` (`EXACT` | `SURPLUS` | `SHORTAGE`).
 
 Resposta: `{ expected, counted, difference, classification: EXACT|SURPLUS|SHORTAGE }`.
 

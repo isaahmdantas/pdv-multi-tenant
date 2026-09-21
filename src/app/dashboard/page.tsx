@@ -124,6 +124,12 @@ export default async function DashboardPage() {
         >
           Compras
         </Link>
+        <Link
+          href="/caixa"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Caixa
+        </Link>
       </nav>
     </main>
   );

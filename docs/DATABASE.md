@@ -47,6 +47,14 @@ São do tenant como um todo; consultadas sem depender de unidade.
 > PurchaseItem (item-filho, via Purchase) criados conforme as tabelas abaixo; entrada gera
 > StockMovement IN com `referenceType = PURCHASE` (integração estoque F8). Ciclo completo em
 > `docs/PURCHASES.md`.
+
+> **F10 (migration `f10_cash`):** CashSession (StoreScoped, `status` OPEN→CLOSED,
+> `openingAmount`/`closingAmount`/`difference` Decimal + `classification`
+> EXACT|SURPLUS|SHORTAGE, ≤1 sessão OPEN por caixa) e CashMovement (item-filho via
+> CashSession, `type` OPENING|SALE|SUPPLY|WITHDRAW|CLOSING|ADJUSTMENT, `methodCode`
+> opcional). Fechamento grava movimento CLOSING com `amount = difference`. Ciclo completo
+> em `docs/CASH.md`.
+
 | CustomerCategory | ✓ | Varejo, Atacado, Funcionário… |
 | Customer | ✓ | categoria via customerCategoryId |
 | Supplier | ✓ | fornecedor (nome, RN) — `@@unique[tenantId, document]` |
