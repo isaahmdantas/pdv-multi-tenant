@@ -163,6 +163,26 @@
 | F10-08 | Diferença (sobra/falta/exato) | ✅ | F10-07 | `close` { difference, classification } EXACT/SURPLUS/SHORTAGE | integração | expected = OPENING + SALE + SUPPLY − WITHDRAW |
 | F10-09 | Relatório de caixa | ✅ | F10-06 | GET `/api/v1/cash-sessions` (filtros status/caixa/período), `src/app/caixa/page.tsx` (resumo e listagem) | integração | permissão reports.view |
 
+## FASE 10.5 — DESIGN SYSTEM + UX FOUNDATION + APP SHELL
+
+| ID | Item | Status | Deps | Arquivos | Validação | Obs |
+|---|---|---|---|---|---|---|
+| F10.5-01 | Design Tokens | ✅ | F1-03 | `src/app/globals.css` (`:root`, `.dark` preparado) | tsc + lint + build | zinc/slate + acento azul-índigo; tokens success/warning/info; radius 0.5rem; correção da fonte Geist (`--font-sans: var(--font-geist-sans)`); app light-only |
+| F10.5-02 | Tipografia | ✅ | F10.5-01 | `src/app/globals.css`, `src/lib/format.ts` (formatBRL/Number/Date/DateTime/MoneyInput) | tsc + lint + visual | hierarquia h1/h2/label/body; monetário e números com `tabular-nums`; pt-BR centralizado no `format.ts` (eliminado `toFixed(2)` espalhado) |
+| F10.5-03 | Componentes base | ✅ | F10.5-01 | `src/components/ui/*` (button, input, textarea, label, select, combobox, search-input, checkbox, radio-group, switch, badge, card, table, dialog, drawer, dropdown-menu, tabs, tooltip, toast, alert, pagination, skeleton, empty-state, error-state, loading-state, confirm-dialog, avatar, separator, scroll-area) | build + tsc | Base UI headless + shadcn; reutilizados sem duplicar (button preexistente) |
+| F10.5-04 | App Shell | ✅ | F10.5-03 | `src/app/(app)/layout.tsx` (route group), `src/components/layout/app-shell.tsx`, `page-container.tsx`, `page-header.tsx` | build (rotas preservadas 1:1) | Sidebar + Header + Main; `/login` e `/` fora do shell; URLs inalteradas |
+| F10.5-05 | Sidebar | ✅ | F10.5-04 | `src/components/layout/app-sidebar.tsx`, `sidebar-nav.tsx`, `nav-icons.tsx`, `src/lib/navigation.ts` | Playwright (lg/tablet/mobile) | grupos lógicos; filtro por permissão via `filterNavSections`; escura slate-900; mobile vira drawer |
+| F10.5-06 | Header | ✅ | F10.5-04 | `src/components/layout/app-header.tsx`, `app-title.tsx`, `mobile-nav.tsx` | Playwright | sticky; hamburger mobile; título seção/item; cluster unidade+status+usuário |
+| F10.5-07 | Unidade ativa | ✅ | F10.5-04, F2, F4 | `src/components/layout/unit-switcher.tsx`, `user-menu.tsx` | Playwright (renders + menu) | nome + código amigável (sem ID técnico); reutiliza `POST /api/v1/session/store` + `router.refresh()` (endpoint testado F2/F4) |
+| F10.5-08 | Status online/offline visual | ✅ | F10.5-03 | `src/components/layout/sync-status-provider.tsx` (useSyncExternalStore), `sync-status.tsx` | Playwright (offline/online ao vivo) | ONLINE/OFFLINE reais via `navigator.onLine`; SYNCING/PENDING/ERROR apenas contrato tipado p/ F13 — sem simulação |
+| F10.5-09 | Dashboard | ✅ | F10.5-04..08, F2/F4/F5/F8/F10 | `src/app/(app)/dashboard/page.tsx` | Playwright + vitest | dados reais; escopo de unidade (operador vê a própria unidade); KPIs, atalhos filtrados, atividade recente (audit log); EmptyState sem métricas fictícias |
+| F10.5-10 | Responsividade | ✅ | F10.5-04/05 | shell + páginas migradas | Playwright 10 viewports × 4 páginas (40 checks overflowX=0) | 1920/1440/1366/1024/820/768/414/390/375/320; sidebar ≥1024, drawer <1024; mobile não apenas "encolhe" |
+| F10.5-11 | Acessibilidade | ✅ | F10.5-03 | `globals.css` (focus ring; contraste success/warning AA), componentes (aria, labels, teclado) | lint + Playwright (console/pageerrors vazios) | foco visível, labels, aria, alvos ≥40px, mensagem de erro compreensível |
+| F10.5-12 | Loading/Empty/Error states | ✅ | F10.5-03 | `src/components/ui/loading-state.tsx`, `empty-state.tsx`, `error-state.tsx`, `confirm-dialog.tsx` | tsc + lint + build | padrão consistente em listas/formulários; EmptyState quando não há dado real |
+| F10.5-13 | Preparação UX do PDV | ✅ | — | `src/app/(pdv)/layout.tsx` (route group próprio), item PDV "Em breve" na sidebar | build | full-viewport, sem shell administrativo; SEM carrinho/venda/pagamento/estoque/atalhos (só estrutura p/ F11) |
+| F10.5-14 | Validação visual | ✅ | F10.5-10 | scripts Playwright (`f10final.py` e auxiliares) | 40 checks DOM + console/pageerror + drawer mobile + overflow | validação via DOM (ambiente não lê screenshots); todos verdes |
+| F10.5-15 | Testes finais | ✅ | F10.5-14 | — | `tsc` + `lint` (0) + `vitest` (21 files/199 tests) + `build` | suite verde; rotas preservadas |
+
 ## FASE 11 — PDV
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
