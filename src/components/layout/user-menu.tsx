@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -53,17 +54,19 @@ export function UserMenu({
         }
       />
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex flex-col">
-            <span className="truncate text-sm font-medium text-foreground">{name ?? 'Usuário'}</span>
-            <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={onSignOut} disabled={leaving}>
-          {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
-          {leaving ? 'Saindo…' : 'Sair'}
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>
+            <div className="flex flex-col">
+              <span className="truncate text-sm font-medium text-foreground">{name ?? 'Usuário'}</span>
+              <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+<DropdownMenuItem variant="destructive" onClick={onSignOut} disabled={leaving}>
+            {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+            {leaving ? 'Saindo…' : 'Sair'}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

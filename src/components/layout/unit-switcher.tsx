@@ -84,9 +84,9 @@ export function UnitSwitcher({
           }
         />
         <DropdownMenuContent align="start" className="w-64">
-          <DropdownMenuLabel>Unidades de trabalho</DropdownMenuLabel>
-          <DropdownMenuSeparator />
           <DropdownMenuGroup>
+            <DropdownMenuLabel>Unidades de trabalho</DropdownMenuLabel>
+            <DropdownMenuSeparator />
             {stores.map((s) => {
               const active = s.storeId === currentStoreId
               return (
