@@ -11,6 +11,8 @@ import {
   ShoppingCart,
   Tags,
   Users,
+  Scale,
+  Banknote,
   type LucideIcon,
 } from 'lucide-react'
 import type { NavIconName } from '@/lib/navigation'
@@ -26,4 +28,6 @@ export const NAV_ICONS: Record<NavIconName, LucideIcon> = {
   estoque: Boxes,
   compras: ShoppingBasket,
   unidades: Building2,
+  'unidades-medida': Scale,
+  caixas: Banknote,
 }

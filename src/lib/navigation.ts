@@ -9,6 +9,8 @@ export type NavIconName =
   | 'estoque'
   | 'compras'
   | 'unidades'
+  | 'unidades-medida'
+  | 'caixas'
 
 export type NavItem = {
   href: string
@@ -48,6 +50,18 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Produtos',
         icon: 'produtos',
         permissions: ['products.create', 'products.update', 'products.delete'],
+      },
+      {
+        href: '/produtos/categorias',
+        label: 'Categorias de produto',
+        icon: 'categorias',
+        permissions: ['products.create'],
+      },
+      {
+        href: '/produtos/unidades-medida',
+        label: 'Unidades de medida',
+        icon: 'unidades-medida',
+        permissions: ['products.create'],
       },
       {
         href: '/clientes',
@@ -105,6 +119,12 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/unidades',
         label: 'Unidades',
         icon: 'unidades',
+        permissions: ['settings.manage'],
+      },
+      {
+        href: '/caixas',
+        label: 'Caixas',
+        icon: 'caixas',
         permissions: ['settings.manage'],
       },
     ],
