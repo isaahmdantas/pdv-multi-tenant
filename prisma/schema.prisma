@@ -58,6 +58,8 @@ model Tenant {
   cashMovements      CashMovement[]
 
   @@index([slug])
+  sales                Sale[]
+  saleItems            SaleItem[]
 }
 
 model Store {
@@ -104,6 +106,7 @@ model Store {
 
   @@unique([tenantId, code])
   @@index([tenantId])
+  sales                Sale[]
 }
 
 model CashRegister {
@@ -138,6 +141,7 @@ model Terminal {
 
   @@unique([tenantId, code])
   @@index([tenantId, storeId])
+  sales                Sale[]
 }
 
 model Device {
@@ -174,6 +178,7 @@ model User {
 
   @@unique([tenantId, email])
   @@index([tenantId])
+  sales                Sale[]
 }
 
 model Role {
@@ -377,6 +382,7 @@ model Product {
   @@unique([tenantId, sku])
   @@index([tenantId])
   @@index([tenantId, name])
+  saleItems            SaleItem[]
 }
 
 model ProductBarcode {
@@ -454,6 +460,7 @@ model Customer {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([tenantId, name])
+  sales               Sale[]
 }
 
 // —— Fase 7 — Preços ———
@@ -481,6 +488,7 @@ model PriceTable {
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([tenantId, storeId])
+  sales             Sale[]
 }
 
 model ProductPrice {
@@ -781,6 +789,7 @@ model CashSession {
   @@index([tenantId, storeId])
   @@index([tenantId, storeId, status])
   @@index([tenantId, cashRegisterId])
+  sales              Sale[]
 }
 
 // Movimentação de caixa (StoreScoped). `type`: OPENING | SALE | SUPPLY | WITHDRAW | CLOSING | ADJUSTMENT.
@@ -806,4 +815,62 @@ model CashMovement {
   @@index([tenantId, storeId])
   @@index([tenantId, cashSessionId])
   @@index([tenantId, cashSessionId, type])
+}
+
+// ——— Fase 11 — Vendas (PDV) ———
+
+// Venda de PDV (StoreScoped). `status`: COMPLETED | CANCELLED.
+// `subtotal` = soma dos itens; `discount` = desconto total aplicado; `total` = final.
+// `terminalId` = terminal POS (F5) que executou a venda; `cashSessionId` = sessão de caixa aberta (F10),
+// que receberá um CashMovement type=SALE no pagamento (F11/F12). `priceTableId` = tabela aplicada via PricingService (F7).
+// Preços NUNCA são recalculados aqui: o PDV chama PricingService (F7). Estoque SÓ é baixado no
+// fechamento da venda via StockService (F8) — o carrinho NÃO decrementa.
+model Sale {
+  id             String        @id @default(cuid(2))
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  storeId        String
+  store          Store         @relation(fields: [storeId], references: [id])
+  terminalId     String?
+  terminal       Terminal?     @relation(fields: [terminalId], references: [id])
+  cashSessionId  String?
+  cashSession    CashSession?  @relation(fields: [cashSessionId], references: [id])
+  operatorId     String
+  operator       User          @relation(fields: [operatorId], references: [id])
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  priceTableId   String?
+  priceTable     PriceTable?   @relation(fields: [priceTableId], references: [id])
+  clientOperationId String?    @db.VarChar(64)
+  status         String        @default("COMPLETED")
+  subtotal       Decimal       @default(0)
+  discount       Decimal       @default(0)
+  total          Decimal       @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items SaleItem[]
+
+  @@index([tenantId, storeId])
+  @@index([tenantId, cashSessionId])
+  @@index([tenantId, terminalId])
+  @@unique([tenantId, clientOperationId])
+}
+
+model SaleItem {
+  id        String   @id @default(cuid(2))
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  saleId    String
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Decimal  @default(0)
+  unitPrice Decimal  @default(0)
+  discount  Decimal  @default(0)
+  total     Decimal  @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, saleId])
 }
