@@ -869,6 +869,8 @@ model SaleItem {
   unitPrice Decimal  @default(0)
   discount  Decimal  @default(0)
   total     Decimal  @default(0)
+  priceTableId String?
+  promotionId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

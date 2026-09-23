@@ -110,6 +110,17 @@ export const updatePromotionSchema = z
     { ...priceTableRefinements, path: ["validUntil"] },
   );
 
+export const resolvePriceSchema = z.object({
+  storeId: z.string().cuid2("Unidade inválida").nullish(),
+  productId: z.string().cuid2("Produto inválido"),
+  customerId: z.string().cuid2().nullish(),
+  customerCategoryId: z.string().cuid2().nullish(),
+  quantity: positiveMoneySchema.nullish(),
+  dateTime: z.coerce.date().nullish(),
+});
+
+export type ResolvePriceInput = z.infer<typeof resolvePriceSchema>;
+
 export type CreatePriceTableInput = z.infer<typeof createPriceTableSchema>;
 export type UpdatePriceTableInput = z.infer<typeof updatePriceTableSchema>;
 export type CreateProductPriceInput = z.infer<typeof createProductPriceSchema>;

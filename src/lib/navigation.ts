@@ -33,7 +33,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Operação',
     items: [
-      { href: '/pdv', label: 'PDV', icon: 'pdv', soon: true },
+      { href: '/pdv', label: 'PDV', icon: 'pdv', permissions: ['sales.create'] },
       {
         href: '/caixa',
         label: 'Caixa',

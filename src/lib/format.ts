@@ -1,11 +1,20 @@
-import { Prisma } from '@/generated/prisma/client'
-
-type MoneyLike = Prisma.Decimal | number | string | null | undefined
+type MoneyLike = number | string | null | undefined | { toNumber(): number }
 type DateLike = Date | string | null | undefined
+
+function isDecimalLike(value: MoneyLike): value is { toNumber(): number } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { toNumber?: unknown }).toNumber === "function"
+  );
+}
 
 function toNumber(value: MoneyLike): number | null {
   if (value == null) return null
-  if (value instanceof Prisma.Decimal) return value.toNumber()
+  if (isDecimalLike(value)) {
+    const n = value.toNumber()
+    return Number.isFinite(n) ? n : null
+  }
   const n = typeof value === 'string' ? Number(value) : value
   if (!Number.isFinite(n)) return null
   return n

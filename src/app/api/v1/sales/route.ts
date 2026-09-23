@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { withApiGuards } from "@/lib/api/guards";
+import { SaleService } from "@/modules/sales/services/sale-service";
 import { prisma } from "@/lib/prisma";
-import { saleService } from "@/modules/sales/services/sale-service";
+import { clientIp } from "@/lib/api/rate-limit";
 import { createSaleSchema, saleQuerySchema } from "@/modules/sales/schemas";
 
-const service = saleService(prisma);
+const saleService = new SaleService(prisma);
 
 export const POST = withApiGuards(async (ctx, request) => {
-  const next = request as NextRequest;
   let body: unknown;
   try {
-    body = await next.json();
+    body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: { code: "INVALID_JSON", message: "Corpo inválido" } },
+      { error: { code: "INVALID_JSON", message: "Body JSON inválido" } },
       { status: 400 },
     );
   }
@@ -27,19 +27,13 @@ export const POST = withApiGuards(async (ctx, request) => {
     );
   }
 
-  const result = await service.checkout(ctx, parsed.data);
-  if (!result.ok) {
-    return NextResponse.json(
-      { error: { code: result.error.code, message: result.error.message } },
-      { status: result.status ?? 400 },
-    );
-  }
+  const sale = await saleService.checkout(ctx, parsed.data, {
+    ip: clientIp(request),
+    device: request.headers.get("user-agent") ?? undefined,
+  });
 
-  return NextResponse.json(
-    { sale: result.sale, created: result.created },
-    { status: result.created ? 201 : 200 },
-  );
-});
+  return NextResponse.json({ sale }, { status: 201 });
+}, "sales.create");
 
 export const GET = withApiGuards(async (ctx, request) => {
   const next = request as NextRequest;
@@ -57,6 +51,6 @@ export const GET = withApiGuards(async (ctx, request) => {
     );
   }
 
-  const sales = await service.list(ctx, parsed.data);
+  const sales = await saleService.list(ctx, parsed.data);
   return NextResponse.json({ sales });
-});
+}, "reports.view");
