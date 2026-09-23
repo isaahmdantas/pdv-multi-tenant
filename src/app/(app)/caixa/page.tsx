@@ -5,8 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { CashRegisterService } from '@/modules/stores/services/cash-register-service';
 import { CashSessionService } from '@/modules/cash/services/cash-session-service';
 import { OpenCashSessionForm } from '@/components/cash/open-cash-session-form';
-import { CashActionButton } from '@/components/cash/cash-action-button';
-import { CloseCashSessionForm } from '@/components/cash/close-cash-session-form';
+import { SessionActions } from '@/components/cash/session-actions';
 import { MovementsList } from '@/components/cash/movements-list';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -180,37 +179,22 @@ export default async function CaixaPage() {
                         )}
                       </td>
                       <td className="py-3 pr-4">
-                        <div className="flex flex-wrap gap-2">
-                          {s.status === 'OPEN' && canSupply && (
-                            <CashActionButton
-                              sessionId={s.id}
-                              action="supply"
-                              label="Suprir"
-                              methodCodes={['CASH', 'PIX', 'CREDIT', 'DEBIT', 'VOUCHER']}
-                            />
-                          )}
-                          {s.status === 'OPEN' && canWithdraw && (
-                            <CashActionButton
-                              sessionId={s.id}
-                              action="withdraw"
-                              label="Sangrar"
-                              methodCodes={['CASH', 'PIX', 'CREDIT', 'DEBIT', 'VOUCHER']}
-                            />
-                          )}
-                          {s.status === 'OPEN' && canClose && (
-                            <CloseCashSessionForm
-                              sessionId={s.id}
-                              expectedByMethod={{
-                                CASH: '0',
-                                PIX: '0',
-                                CREDIT: '0',
-                                DEBIT: '0',
-                                VOUCHER: '0',
-                              }}
-                              onClose={() => {}}
-                            />
-                          )}
-                        </div>
+                        <SessionActions
+                          sessionId={s.id}
+                          cashRegisterName={s.cashRegister?.name ?? ''}
+                          storeName={s.store?.name ?? ''}
+                          status={s.status}
+                          expectedByMethod={{
+                            CASH: '0',
+                            PIX: '0',
+                            CREDIT: '0',
+                            DEBIT: '0',
+                            VOUCHER: '0',
+                          }}
+                          canSupply={canSupply}
+                          canWithdraw={canWithdraw}
+                          canClose={canClose}
+                        />
                       </td>
                     </tr>
                   ))}
