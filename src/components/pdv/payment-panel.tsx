@@ -1,7 +1,6 @@
 'use client'
 
 import { BadgeCheckIcon, EraserIcon } from 'lucide-react'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatBRL } from '@/lib/format'
@@ -11,37 +10,38 @@ import {
   round2,
   type PaymentMethodCode,
   type PdvTotals,
+  type ResolvedPayments,
 } from '@/components/pdv/types'
 
 interface PaymentPanelProps {
   totals: PdvTotals
   discountInput: string
   onDiscountChange: (value: string) => void
-  methodCode: PaymentMethodCode
-  onMethodChange: (code: PaymentMethodCode) => void
-  receivedInput: string
-  onReceivedChange: (value: string) => void
-  change: number
+  payments: Record<PaymentMethodCode, string>
+  onPaymentChange: (code: PaymentMethodCode, value: string) => void
+  resolved: ResolvedPayments
   canFinalize: boolean
   submitting: boolean
   onFinalize: () => void
+  onClearPayments: () => void
 }
 
 export function PaymentPanel({
   totals,
   discountInput,
   onDiscountChange,
-  methodCode,
-  onMethodChange,
-  receivedInput,
-  onReceivedChange,
-  change,
+  payments,
+  onPaymentChange,
+  resolved,
   canFinalize,
   submitting,
   onFinalize,
+  onClearPayments,
 }: PaymentPanelProps) {
-  const isCash = methodCode === 'CASH'
-  const received = Number(receivedInput.replace(',', '.')) || 0
+  const { allocs, paid, remaining, change, complete } = resolved
+  const fillRemaining = (code: PaymentMethodCode) => {
+    if (remaining > 0.005) onPaymentChange(code, String(round2(remaining)))
+  }
 
   return (
     <div className="flex flex-col gap-4 rounded-lg border bg-card p-4">
@@ -63,45 +63,55 @@ export function PaymentPanel({
       </div>
 
       <fieldset>
-        <legend className="mb-1.5 text-xs font-medium text-muted-foreground">
-          Forma de pagamento
-        </legend>
-        <RadioGroup value={methodCode} onValueChange={(v) => onMethodChange(v as PaymentMethodCode)}>
+        <legend className="mb-1.5 text-xs font-medium text-muted-foreground">Rateio do pagamento</legend>
+        <div className="flex flex-col gap-1.5">
           {PAYMENT_METHODS.map((m) => (
-            <label
-              key={m.code}
-              className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
-            >
-              <RadioGroupItem value={m.code} />
-              <span className="font-medium">{m.label}</span>
-            </label>
+            <div key={m.code} className="flex items-center gap-2">
+              <span className="w-20 shrink-0 text-sm font-medium">{m.label}</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={payments[m.code]}
+                placeholder="0,00"
+                onChange={(e) => onPaymentChange(m.code, e.target.value)}
+                className="h-9 text-right tabular-nums"
+                disabled={totals.total <= 0}
+              />
+              {remaining > 0.005 ? (
+                <button
+                  type="button"
+                  onClick={() => fillRemaining(m.code)}
+                  className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                >
+                  Restante
+                </button>
+              ) : null}
+            </div>
           ))}
-        </RadioGroup>
-      </fieldset>
-
-      {isCash ? (
-        <div>
-          <label htmlFor="pdv-received" className="mb-1.5 block text-xs font-medium text-muted-foreground">
-            Valor recebido (R$)
-          </label>
-          <Input
-            id="pdv-received"
-            type="number"
-            min={0}
-            step="0.01"
-            value={receivedInput}
-            placeholder="0,00"
-            onChange={(e) => onReceivedChange(e.target.value)}
-            className="h-10 text-right tabular-nums"
-          />
-          {received >= totals.total && totals.total > 0 ? (
-            <p className="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-success">
-              <BadgeCheckIcon className="size-4" aria-hidden="true" />
-              Troco: {formatBRL(change)}
-            </p>
-          ) : null}
         </div>
-      ) : null}
+
+        {change > 0 ? (
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-success">
+            <BadgeCheckIcon className="size-4" aria-hidden="true" />
+            Troco: {formatBRL(change)}
+          </p>
+        ) : null}
+
+        {!complete ? (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {paid > totals.total ? (
+              <span className="text-destructive">
+                Pagamento excede o total em {formatBRL(round2(paid - totals.total))}
+              </span>
+            ) : remaining > 0 ? (
+              `Falta ${formatBRL(remaining)}`
+            ) : (
+              'Defina o valor pago em ao menos uma forma'
+            )}
+          </p>
+        ) : null}
+      </fieldset>
 
       <div className="rounded-md bg-muted/60 px-3 py-2.5 text-sm">
         <div className="flex justify-between">
@@ -117,7 +127,9 @@ export function PaymentPanel({
           <span className="tabular-nums">{formatBRL(totals.total)}</span>
         </div>
         <p className="mt-0.5 text-right text-xs text-muted-foreground">
-          Pagamento em {paymentLabel(methodCode)}
+          {allocs.length > 0
+            ? allocs.map((a) => `${paymentLabel(a.methodCode)} ${formatBRL(a.amount)}`).join(' · ')
+            : 'Nenhum pagamento definido'}
         </p>
       </div>
 
@@ -131,14 +143,14 @@ export function PaymentPanel({
         {submitting ? 'Finalizando…' : `Finalizar venda · ${formatBRL(totals.total)}`}
       </Button>
 
-      {change > 0 && isCash ? (
+      {paid > 0 ? (
         <button
           type="button"
-          onClick={() => onReceivedChange(String(round2(0)))}
+          onClick={onClearPayments}
           className="inline-flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
           <EraserIcon className="size-3.5" aria-hidden="true" />
-          Limpar valor recebido
+          Limpar rateio
         </button>
       ) : null}
     </div>

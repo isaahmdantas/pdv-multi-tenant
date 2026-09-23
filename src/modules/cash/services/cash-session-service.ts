@@ -11,6 +11,7 @@ interface Totals {
   sales: Prisma.Decimal;
   supplies: Prisma.Decimal;
   withdraws: Prisma.Decimal;
+  refunds: Prisma.Decimal;
   expected: Prisma.Decimal;
 }
 
@@ -253,6 +254,7 @@ export class CashSessionService {
     let sales = toDecimal(0);
     let supplies = toDecimal(0);
     let withdraws = toDecimal(0);
+    let refunds = toDecimal(0);
 
     for (const m of movements) {
       const amt = toDecimal(String(m.amount));
@@ -267,11 +269,15 @@ export class CashSessionService {
         case 'WITHDRAW':
           withdraws = withdraws.add(amt);
           break;
+        case 'REFUND':
+          // Dinheiro devolvido ao cliente sai do caixa.
+          refunds = refunds.add(amt);
+          break;
       }
     }
 
-    const expected = sales.add(supplies).sub(withdraws);
+    const expected = sales.add(supplies).sub(withdraws).sub(refunds);
 
-    return { sales, supplies, withdraws, expected };
+    return { sales, supplies, withdraws, refunds, expected };
   }
 }

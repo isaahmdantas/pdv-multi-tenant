@@ -179,41 +179,41 @@
 | F10.5-10 | Responsividade | ✅ | F10.5-04/05 | shell + páginas migradas | Playwright 10 viewports × 4 páginas (40 checks overflowX=0) | 1920/1440/1366/1024/820/768/414/390/375/320; sidebar ≥1024, drawer <1024; mobile não apenas "encolhe" |
 | F10.5-11 | Acessibilidade | ✅ | F10.5-03 | `globals.css` (focus ring; contraste success/warning AA), componentes (aria, labels, teclado) | lint + Playwright (console/pageerrors vazios) | foco visível, labels, aria, alvos ≥40px, mensagem de erro compreensível |
 | F10.5-12 | Loading/Empty/Error states | ✅ | F10.5-03 | `src/components/ui/loading-state.tsx`, `empty-state.tsx`, `error-state.tsx`, `confirm-dialog.tsx` | tsc + lint + build | padrão consistente em listas/formulários; EmptyState quando não há dado real |
-| F10.5-13 | Preparação UX do PDV | ✅ | — | `src/app/(pdv)/layout.tsx` (route group próprio), item PDV "Em breve" na sidebar | build | full-viewport, sem shell administrativo; SEM carrinho/venda/pagamento/estoque/atalhos (só estrutura p/ F11) |
+| F10.5-13 | Preparação UX do PDV | ✅ | — | `src/app/(pdv)/layout.tsx` (route group próprio) | build | full-viewport, sem shell administrativo; estrutura absorvida pela F11. **Nota:** route group `(pdv)` é URL-neutro — em F11 a rota real virou `src/app/pdv/` (path `/pdv`) |
 | F10.5-14 | Validação visual | ✅ | F10.5-10 | scripts Playwright (`f10final.py` e auxiliares) | 40 checks DOM + console/pageerror + drawer mobile + overflow | validação via DOM (ambiente não lê screenshots); todos verdes |
 | F10.5-15 | Testes finais | ✅ | F10.5-14 | — | `tsc` + `lint` (0) + `vitest` (21 files/199 tests) + `build` | suite verde; rotas preservadas |
 
 ## FASE 11 — PDV
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
-|---|---|---|---|---|---|---|
-| F11-01 | Tela PDV | ⬜ | F3 | - | - | - |
-| F11-02 | Busca de produto | ⬜ | F11-01, F5 | - | - | - |
-| F11-03 | Código de barras | ⬜ | F11-01, F5 | - | - | - |
-| F11-04 | Carrinho | ⬜ | F11-01 | - | - | - |
-| F11-05 | Quantidade | ⬜ | F11-04 | - | - | - |
-| F11-06 | Cliente | ⬜ | F11-04, F6 | - | - | - |
-| F11-07 | Seleção de preço (PricingService) | ⬜ | F11-04, F7 | - | - | - |
-| F11-08 | Desconto | ⬜ | F11-04 | - | - | - |
-| F11-09 | Cancelamento | ⬜ | F11-04 | - | - | - |
-| F11-10 | Suspensão | ⬜ | F11-04 | - | - | - |
-| F11-11 | Recuperação | ⬜ | F11-10 | - | - | - |
-| F11-12 | Pagamento | ⬜ | F11-04, F12 | - | - | - |
-| F11-13 | Troco | ⬜ | F11-12 | - | - | - |
-| F11-14 | Finalização | ⬜ | F11-12 | - | - | - |
+|---|---|---|---|---|---|---|---|
+| F11-01 | Tela PDV | ✅ | F3, F10.5-13 | `src/app/pdv/layout.tsx`, `src/app/pdv/page.tsx`, `src/components/pdv/pdv-shell.tsx`, `pdv-header.tsx` | build + render autenticado 200 + redirect p/ /login sem sessão | full-viewport sem shell admin; exige permissão `sales.create`; exige unidade ativa. **Nota:** rota real é `/pdv` — folder `(pdv)` (route group) é URL-neutro e resolve para `/` (fix aplicado: `git mv (pdv) pdv`) |
+| F11-02 | Busca de produto | ✅ | F11-01, F5 | `src/components/pdv/product-search.tsx` | build + smoke | busca por nome/SKU (≤8 resultados) entre produtos ACTIVE na unidade |
+| F11-03 | Código de barras | ✅ | F11-01, F5 | `src/components/pdv/product-search.tsx` (Input autofocus + Enter) | smoke | match exato de barcode; sem scanner físico (hw em F15-04) |
+| F11-04 | Carrinho | ✅ | F11-01 | `src/components/pdv/cart.tsx` | build | itens únicos por produto; qty, desconto por item, remover, subtotal; estado em `pdv-shell` |
+| F11-05 | Quantidade | ✅ | F11-04 | `src/components/pdv/cart.tsx`, `pdv-shell.tsx` | smoke | ± com clamp ≥1; re-resolve preço por quantidade ao mudar |
+| F11-06 | Cliente | ✅ | F11-04, F6 | `src/components/pdv/customer-selector.tsx` | smoke | seleciona cliente + mostra categoria; ao trocar, re-resolve preços de TODOS os itens (regra F7-05/06) |
+| F11-07 | Seleção de preço (PricingService) | ✅ | F11-04, F7 | `src/app/api/v1/pricing/resolve/route.ts`, `src/modules/pricing/schemas.ts` (`resolvePriceSchema`), `pdv-shell.syncPrice` | integração sales.test.ts + smoke | preço re-resolvido no servidor por item/cliente/qtd; `unitPrice` enviado pelo cliente é IGNORADO; congela priceTableId/promotionId no SaleItem |
+| F11-08 | Desconto | ✅ | F11-04 | `src/components/pdv/cart.tsx` (item), `payment-panel.tsx` (venda) | integração (INVALID_DISCOUNT) + smoke | desconto em R$ por item e por venda; validado > subtotal → 400/409 INVALID_DISCOUNT no servidor |
+| F11-09 | Cancelamento | 🟡 | F11-04 | `SaleService.cancel`, `src/app/api/v1/sales/[id]/cancel/route.ts` | integração sales.test.ts (reverte estoque IN + audit + 409 na 2ª vez) | back-end pronto e testado; ação visual no PDV adiada por decisão de escopo (futuro backoffice) |
+| F11-10 | Suspensão | ⬜ | F11-04 | - | - | adiado por decisão (simplificação): nova venda em vez de suspender |
+| F11-11 | Recuperação | ⬜ | F11-10 | - | - | adiado por decisão; suporte futuro via `Sale.status` |
+| F11-12 | Pagamento | ✅ | F11-04 | `src/components/pdv/payment-panel.tsx` | smoke | método único por venda no PDV (Dinheiro/Pix/Crédito/Débito/Vale); múltiplos pagamentos ficam p/ F12-06 (admin) |
+| F11-13 | Troco | ✅ | F11-12 | `src/components/pdv/payment-panel.tsx` (CASH) | smoke | valor recebido + troco; exigido recebido ≥ total |
+| F11-14 | Finalização | ✅ | F11-12 | `SaleService.checkout`, `src/app/api/v1/sales/route.ts`, `src/modules/sales/schemas.ts`, `constants.ts`, `sale-repository.ts`, `api/v1/sales/[id]/cancel/route.ts`, migration `f11_sale_price_freezing` | integração sales.test.ts (15) + build | POST /api/v1/sales: cria Sale+SaleItems(+priceTableId/promotionId)+CashMovement(SALE)+StockBalance OUT+audit; PAYMENT_MISMATCH 0.01; STOCK_INSUFFICIENT 409; idempotente via clientOperationId; limpa carrinho + router.refresh() |
 
 ## FASE 12 — PAGAMENTOS
 
 | ID | Item | Status | Deps | Arquivos | Validação | Obs |
 |---|---|---|---|---|---|---|
-| F12-01 | Dinheiro | ⬜ | F11 | - | - | - |
-| F12-02 | PIX | ⬜ | F11 | - | - | - |
-| F12-03 | Crédito | ⬜ | F11 | - | - | - |
-| F12-04 | Débito | ⬜ | F11 | - | - | - |
-| F12-05 | Voucher | ⬜ | F11 | - | - | - |
-| F12-06 | Múltiplos pagamentos | ⬜ | F12-01..05 | - | - | - |
-| F12-07 | Estorno | ⬜ | F12-06 | - | - | - |
-| F12-08 | Histórico | ⬜ | F12-06 | - | - | - |
+| F12-01 | Dinheiro | ✅ | F11 | `src/components/pdv/payment-panel.tsx` | smoke | forma no rateio; troco quando valor recebido > devido |
+| F12-02 | PIX | ✅ | F11 | `src/components/pdv/payment-panel.tsx` | smoke | forma no rateio |
+| F12-03 | Crédito | ✅ | F11 | `src/components/pdv/payment-panel.tsx` | smoke | forma no rateio |
+| F12-04 | Débito | ✅ | F11 | `src/components/pdv/payment-panel.tsx` | smoke | forma no rateio |
+| F12-05 | Voucher | ✅ | F11 | `src/components/pdv/payment-panel.tsx` | smoke | forma no rateio |
+| F12-06 | Múltiplos pagamentos | ✅ | F12-01..05 | `src/components/pdv/payment-panel.tsx`, `pdv-shell.tsx`, `types.ts` (resolvePayments), `src/test/unit/pdv-payments.test.ts` | unit | rateio soma = total (±0,01); apenas CASH gera troco; envio em `payments: []` |
+| F12-07 | Estorno | ✅ | F12-06 | `src/modules/sales/services/sale-service.ts` (refund), `src/app/api/v1/sales/[id]/refund/route.ts`, `src/components/sales/refund-sale-button.tsx`, migration `f12_sale_refund_tracking` | unit+smoke | estorno total ou parcial por item (perm `sales.refund`); devolve estoque (IN), cria CashMovement `REFUND` (sai do caixa), rastreia `refundedTotal`/`refundedQuantity`; calcula troco/fechamento de caixa subtrai REFUND |
+| F12-08 | Histórico | ✅ | F12-06 | `src/app/(app)/vendas/page.tsx`, `src/components/sales/sales-history-filters.tsx`, `src/test/integration/sales.test.ts` (3 testes list), nav `/vendas` (reports.view) | unit+smoke | lista vendas por unidade/status/intervalo; pagamentos por forma (CashMovement SALE); total de concluídas |
 
 ## FASE 13 — OFFLINE-FIRST
 
@@ -316,7 +316,7 @@
 | F19-05 | Preços | ⬜ | F7 | - | - | - |
 | F19-06 | Caixa | ⬜ | F10 | - | - | - |
 | F19-07 | Estoque | ⬜ | F8 | - | - | - |
-| F19-08 | PDV | ⬜ | F11 | - | - | - |
+| F19-08 | PDV | 🟡 | F11 | `src/test/integration/sales.test.ts` (15 testes) | `npm test` (22 files/214) | back-end coberto (checkout, congelamento de preço, estoque, caixa, idempotência, cancelamento, isolamento A×B); E2E da UI (Playwright) pendente |
 | F19-09 | Offline | ⬜ | F13 | - | - | - |
 | F19-10 | Sincronização | ⬜ | F13 | - | - | - |
 | F19-11 | Idempotência | ⬜ | F13-08 | - | - | - |
@@ -364,6 +364,10 @@
   integração estoque). Referência: `docs/PURCHASES.md`.
 - ✅ **FASE 10** — Caixa concluída (abertura, suprimento, sangria, movimentações, fechamento
   com conferência e classificação de diferença, relatório). Referência: `docs/CASH.md`.
+- ✅ **FASE 11** — PDV concluída (tela `/pdv`, busca, código de barras, carrinho, quantidade,
+  cliente, seleção de preço, desconto, pagamento com troco e finalização idempotente).
+  Adiados por decisão: cancelamento via UI, suspensão/recuperação. Referência:
+  `src/app/pdv/`, `src/components/pdv/*`, `src/modules/sales/*`.
 - ⬜ Demais fases — não iniciadas, conforme numeração fixa do Prompt Mestre.
 - ❌ **F14-03/04/05/07** — bloqueadas por dependência externa (SEFAZ/certificado); abstrações
   serão implementadas na fase, sem simular funcionamento real.

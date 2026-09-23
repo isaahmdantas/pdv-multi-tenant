@@ -42,7 +42,23 @@ export const saleQuerySchema = z.object({
   toDate: z.coerce.date().optional(),
 });
 
+export const refundSaleSchema = z.object({
+  cashSessionId: z.string().cuid2().optional(),
+  methodCode: z.enum(PAYMENT_METHOD_CODES as [string, ...string[]]).default('CASH'),
+  notes: z.string().trim().max(500).optional(),
+  // Sem items (ou vazio) = estorno total. Com items = parcial por item.
+  items: z
+    .array(
+      z.object({
+        saleItemId: z.string().cuid2('Item inválido'),
+        quantity: positiveMoneySchema,
+      }),
+    )
+    .optional(),
+});
+
 export type SaleItemInput = z.input<typeof saleItemSchema>;
 export type SalePaymentInput = z.input<typeof salePaymentSchema>;
 export type CreateSaleInput = z.input<typeof createSaleSchema>;
 export type SaleQueryInput = z.infer<typeof saleQuerySchema>;
+export type RefundSaleInput = z.input<typeof refundSaleSchema>;

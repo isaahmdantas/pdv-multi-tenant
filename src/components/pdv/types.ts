@@ -49,3 +49,38 @@ export function paymentLabel(code: string): string {
 export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100
 }
+
+export interface PaymentAlloc {
+  methodCode: PaymentMethodCode
+  amount: number
+}
+
+export interface ResolvedPayments {
+  allocs: PaymentAlloc[]
+  paid: number
+  remaining: number
+  change: number
+  complete: boolean
+}
+
+export function resolvePayments(
+  total: number,
+  inputs: Partial<Record<PaymentMethodCode, string>>,
+): ResolvedPayments {
+  const entries = PAYMENT_METHODS.map((m) => ({
+    code: m.code,
+    amount: round2(Number(inputs[m.code]?.replace(',', '.')) || 0),
+  }))
+  const paid = round2(entries.reduce((acc, e) => acc + e.amount, 0))
+  const otherPaid = round2(entries.filter((e) => e.code !== 'CASH').reduce((acc, e) => acc + e.amount, 0))
+  const cash = entries.find((e) => e.code === 'CASH')?.amount ?? 0
+  const cashDue = round2(Math.max(0, total - otherPaid))
+  const change = round2(Math.max(0, cash - cashDue))
+  const cashRecorded = round2(cash - change)
+  const allocs: PaymentAlloc[] = entries
+    .filter((e) => (e.code === 'CASH' ? cashRecorded > 0 : e.amount > 0))
+    .map((e) => ({ methodCode: e.code, amount: e.code === 'CASH' ? cashRecorded : e.amount }))
+  const allocSum = round2(allocs.reduce((acc, a) => acc + a.amount, 0))
+  const complete = allocs.length > 0 && Math.abs(allocSum - total) < 0.01
+  return { allocs, paid, remaining: round2(total - paid), change, complete }
+}

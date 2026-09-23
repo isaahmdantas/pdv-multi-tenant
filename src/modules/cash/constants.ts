@@ -9,6 +9,7 @@ export const CASH_MOVEMENT_TYPES = [
   'WITHDRAW',
   'CLOSING',
   'ADJUSTMENT',
+  'REFUND',
 ];
 export type CashMovementType = (typeof CASH_MOVEMENT_TYPES)[number];
 

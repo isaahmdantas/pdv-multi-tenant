@@ -13,6 +13,7 @@ import {
   Users,
   Scale,
   Banknote,
+  ReceiptText,
   type LucideIcon,
 } from 'lucide-react'
 import type { NavIconName } from '@/lib/navigation'
@@ -30,4 +31,5 @@ export const NAV_ICONS: Record<NavIconName, LucideIcon> = {
   unidades: Building2,
   'unidades-medida': Scale,
   caixas: Banknote,
+  vendas: ReceiptText,
 }

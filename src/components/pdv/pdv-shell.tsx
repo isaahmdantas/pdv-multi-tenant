@@ -11,6 +11,7 @@ import { Cart } from '@/components/pdv/cart'
 import { CustomerSelector } from '@/components/pdv/customer-selector'
 import { PaymentPanel } from '@/components/pdv/payment-panel'
 import {
+  resolvePayments,
   round2,
   type CartItem,
   type PaymentMethodCode,
@@ -37,9 +38,14 @@ export function PdvShell({ store, operatorName, openSession, products, customers
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
   const [customerId, setCustomerId] = useState<string | null>(null)
-  const [methodCode, setMethodCode] = useState<PaymentMethodCode>('CASH')
+  const [payments, setPayments] = useState<Record<PaymentMethodCode, string>>({
+    CASH: '',
+    PIX: '',
+    CREDIT: '',
+    DEBIT: '',
+    VOUCHER: '',
+  })
   const [discountInput, setDiscountInput] = useState('')
-  const [receivedInput, setReceivedInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [completed, setCompleted] = useState<{ id: string; total: number; change: number } | null>(null)
@@ -52,8 +58,10 @@ export function PdvShell({ store, operatorName, openSession, products, customers
   const subtotal = round2(cart.reduce((acc, item) => acc + item.total, 0))
   const discount = round2(Math.max(0, Number(discountInput.replace(',', '.')) || 0))
   const total = round2(Math.max(0, subtotal - discount))
-  const received = Number(receivedInput.replace(',', '.')) || 0
-  const change = methodCode === 'CASH' && received > total ? round2(received - total) : 0
+  const resolved = resolvePayments(total, payments)
+  const setPayment = (code: PaymentMethodCode, value: string) =>
+    setPayments((prev) => ({ ...prev, [code]: value }))
+  const clearPayments = () => setPayments({ CASH: '', PIX: '', CREDIT: '', DEBIT: '', VOUCHER: '' })
 
   async function fetchPrice(productId: string, quantity: number, customerId: string | null): Promise<ResolvedPrice> {
     const res = await fetch('/api/v1/pricing/resolve', {
@@ -193,7 +201,10 @@ export function PdvShell({ store, operatorName, openSession, products, customers
             productId: item.productId,
             quantity: String(item.quantity),
           })),
-          payments: [{ methodCode, amount: String(amount) }],
+          payments: resolved.allocs.map((alloc) => ({
+            methodCode: alloc.methodCode,
+            amount: String(alloc.amount),
+          })),
         }),
       })
       const data = await res.json()
@@ -204,12 +215,12 @@ export function PdvShell({ store, operatorName, openSession, products, customers
       setCompleted({
         id: (data.sale?.id ?? '') as string,
         total: amount,
-        change: methodCode === 'CASH' ? change : 0,
+        change: resolved.change,
       })
       setCart([])
       setCustomerId(null)
       setDiscountInput('')
-      setReceivedInput('')
+      clearPayments()
       router.refresh()
     } catch {
       setError('Erro de conexão ao finalizar venda.')
@@ -285,14 +296,13 @@ export function PdvShell({ store, operatorName, openSession, products, customers
             totals={{ subtotal, discount, total }}
             discountInput={discountInput}
             onDiscountChange={setDiscountInput}
-            methodCode={methodCode}
-            onMethodChange={setMethodCode}
-            receivedInput={receivedInput}
-            onReceivedChange={setReceivedInput}
-            change={change}
-            canFinalize={cart.length > 0 && total > 0 && !!openSession}
+            payments={payments}
+            onPaymentChange={setPayment}
+            resolved={resolved}
+            canFinalize={resolved.complete && cart.length > 0 && total > 0 && !!openSession}
             submitting={submitting}
             onFinalize={finalize}
+            onClearPayments={clearPayments}
           />
         </div>
       </div>

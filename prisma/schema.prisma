@@ -846,6 +846,8 @@ model Sale {
   subtotal       Decimal       @default(0)
   discount       Decimal       @default(0)
   total          Decimal       @default(0)
+  // F12-07: total já estornado (soma dos CashMovement REFUND da venda).
+  refundedTotal  Decimal       @default(0)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -871,6 +873,8 @@ model SaleItem {
   total     Decimal  @default(0)
   priceTableId String?
   promotionId  String?
+  // F12-07: quantidade já estornada deste item (estorno parcial).
+  refundedQuantity Decimal @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -22,6 +22,7 @@ const typeLabels: Record<string, string> = {
   WITHDRAW: 'Sangria',
   CLOSING: 'Fechamento',
   ADJUSTMENT: 'Ajuste',
+  REFUND: 'Estorno',
 };
 
 const typeColors: Record<string, string> = {
@@ -31,6 +32,7 @@ const typeColors: Record<string, string> = {
   WITHDRAW: 'bg-amber-100 text-amber-800',
   CLOSING: 'bg-purple-100 text-purple-800',
   ADJUSTMENT: 'bg-gray-100 text-gray-800',
+  REFUND: 'bg-rose-100 text-rose-800',
 };
 
 interface MovementsListProps {

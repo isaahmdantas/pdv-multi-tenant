@@ -41,6 +41,7 @@ const PERMS = [
   "sales.create",
   "sales.cancel",
   "sales.discount",
+  "sales.refund",
   "reports.view",
   "cash.open",
   "cash.close",
@@ -419,6 +420,64 @@ describe("Sales F11 — cancelamento", () => {
   });
 });
 
+describe("Sales F12-08 — listagem/filtros do histórico", () => {
+  it("lista vendas da unidade e exclui vendas de outra unidade", async () => {
+    const session = await openSession();
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+
+    const inStore = await saleSvc.list(ctxA, { storeId: ctxA.storeId! });
+    expect(inStore.some((s) => s.id === sale.id)).toBe(true);
+
+    const otherStore = await db.store.create({
+      data: { tenantId: ctxA.tenantId, name: "Loja A3", code: "A3", status: "ACTIVE" },
+      select: { id: true },
+    });
+    const otherList = await saleSvc.list(ctxA, { storeId: otherStore.id });
+    expect(otherList.some((s) => s.id === sale.id)).toBe(false);
+  });
+
+  it("filtra por status (COMPLETED vs CANCELLED)", async () => {
+    const session = await openSession();
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+    await saleSvc.cancel(ctxA, sale.id);
+
+    const cancelled = await saleSvc.list(ctxA, { status: "CANCELLED" });
+    expect(cancelled.some((s) => s.id === sale.id)).toBe(true);
+
+    const completed = await saleSvc.list(ctxA, { status: "COMPLETED" });
+    expect(completed.some((s) => s.id === sale.id)).toBe(false);
+  });
+
+  it("respeita o intervalo de datas (fromDate/toDate)", async () => {
+    const session = await openSession();
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+
+    const past = await saleSvc.list(ctxA, {
+      fromDate: new Date("2020-01-01"),
+      toDate: new Date("2020-01-02"),
+    });
+    expect(past.some((s) => s.id === sale.id)).toBe(false);
+
+    const future = await saleSvc.list(ctxA, {
+      fromDate: new Date(Date.now() + 24 * 3600 * 1000),
+      toDate: new Date(Date.now() + 48 * 3600 * 1000),
+    });
+    expect(future.some((s) => s.id === sale.id)).toBe(false);
+  });
+});
+
 describe("Sales F11 — isolamento multi-tenant", () => {
   it("tenant B não acessa venda criada pelo tenant A", async () => {
     const sessionA = await openSession();
@@ -453,5 +512,145 @@ describe("Sales F11 — isolamento multi-tenant", () => {
     expect(sale.status).toBe("COMPLETED");
     expect(Number(sale.total)).toBe(2);
     expect(sale.id).toBeTruthy();
+  });
+});
+
+describe("Sales F12-07 — estorno total e parcial", () => {
+  it("estorno total devolve estoque, cria CashMovement REFUND e audita SALE_REFUNDED", async () => {
+    const before = await balanceOf(ctxA, productAId);
+    const session = await openSession();
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "10.90" }],
+      items: [{ productId: productAId, quantity: "2" }],
+    });
+    expect(await balanceOf(ctxA, productAId)).toBe(before - 2);
+
+    const refunded = await saleSvc.refund(ctxA, sale.id, { methodCode: "CASH" });
+    expect(Number(refunded.refundedTotal)).toBeCloseTo(10.9, 2);
+    expect(await balanceOf(ctxA, productAId)).toBe(before);
+
+    const stockIn = await db.stockMovement.findFirst({
+      where: { tenantId: ctxA.tenantId, referenceType: "SALE", referenceId: sale.id, type: "IN" },
+    });
+    expect(stockIn).toBeTruthy();
+    expect(Number(stockIn?.quantity)).toBe(2);
+
+    const movements = await db.cashMovement.findMany({
+      where: { tenantId: ctxA.tenantId, referenceId: sale.id, type: "REFUND" },
+    });
+    expect(movements).toHaveLength(1);
+    expect(Number(movements[0].amount)).toBeCloseTo(10.9, 2);
+    expect(movements[0].cashSessionId).toBeTruthy();
+
+    const logs = await db.auditLog.findMany({
+      where: { tenantId: ctxA.tenantId, action: "SALE_REFUNDED", entityId: sale.id },
+    });
+    expect(logs).toHaveLength(1);
+
+    const items = await db.saleItem.findMany({ where: { saleId: sale.id } });
+    expect(Number(items[0].refundedQuantity)).toBe(2);
+  });
+
+  it("estorno parcial devolve só a quantidade informada", async () => {
+    const before = await balanceOf(ctxA, productAId);
+    const session = await openSession();
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "10.90" }],
+      items: [{ productId: productAId, quantity: "2" }],
+    });
+
+    const partial = await saleSvc.refund(ctxA, sale.id, {
+      methodCode: "CASH",
+      items: [{ saleItemId: sale.items[0].id, quantity: "1" }],
+    });
+    expect(Number(partial.refundedTotal)).toBeCloseTo(5.45, 2);
+    expect(await balanceOf(ctxA, productAId)).toBe(before - 1);
+
+    const item = await db.saleItem.findFirst({ where: { id: sale.items[0].id } });
+    expect(Number(item?.refundedQuantity)).toBe(1);
+
+    const movements = await db.cashMovement.findMany({
+      where: { tenantId: ctxA.tenantId, referenceId: sale.id, type: "REFUND" },
+    });
+    expect(movements).toHaveLength(1);
+    expect(Number(movements[0].amount)).toBeCloseTo(5.45, 2);
+  });
+
+  it("impede estornar mais do que o saldo restante", async () => {
+    const session = await openSession();
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+
+    await expect(
+      saleSvc.refund(ctxA, sale.id, {
+        methodCode: "CASH",
+        items: [{ saleItemId: sale.items[0].id, quantity: "2" }],
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "REFUND_EXCEEDS_REMAINING" });
+  });
+
+  it("impede estorno total duplo (SALE_ALREADY_REFUNDED)", async () => {
+    const session = await openSession();
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+
+    await saleSvc.refund(ctxA, sale.id, { methodCode: "CASH" });
+    await expect(saleSvc.refund(ctxA, sale.id, { methodCode: "CASH" })).rejects.toMatchObject({
+      status: 409,
+      code: "SALE_ALREADY_REFUNDED",
+    });
+  });
+
+  it("impede estornar venda cancelada (SALE_NOT_REFUNDABLE)", async () => {
+    const session = await openSession();
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+    await saleSvc.cancel(ctxA, sale.id);
+
+    await expect(saleSvc.refund(ctxA, sale.id, { methodCode: "CASH" })).rejects.toMatchObject({
+      status: 409,
+      code: "SALE_NOT_REFUNDABLE",
+    });
+  });
+
+  it("rejeita estorno com sessão de caixa fechada", async () => {
+    const reg = await cashRegisterSvc.create(ctxA, { storeId: ctxA.storeId!, name: `Caixa RF${regCounter}` });
+    const closed = await cashSessionSvc.open(ctxA, { cashRegisterId: reg.id, openingAmount: "0" });
+    await cashSessionSvc.close(ctxA, closed.id, { countedByMethod: { CASH: "0" } });
+
+    const sale = await saleSvc.checkout(ctxA, {
+      cashSessionId: (await openSession()).id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+
+    await expect(
+      saleSvc.refund(ctxA, sale.id, { methodCode: "CASH", cashSessionId: closed.id }),
+    ).rejects.toMatchObject({ status: 400, code: "CASH_SESSION_NOT_OPEN" });
+  });
+
+  it("tenant B não estorna venda do tenant A", async () => {
+    const sessionA = await openSession();
+    const saleA = await saleSvc.checkout(ctxA, {
+      cashSessionId: sessionA.id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+
+    await expect(saleSvc.refund(ctxB, saleA.id, { methodCode: "CASH" })).rejects.toMatchObject({
+      status: 404,
+      code: "SALE_NOT_FOUND",
+    });
   });
 });

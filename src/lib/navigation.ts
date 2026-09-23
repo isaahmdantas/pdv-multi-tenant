@@ -11,6 +11,7 @@ export type NavIconName =
   | 'unidades'
   | 'unidades-medida'
   | 'caixas'
+  | 'vendas'
 
 export type NavItem = {
   href: string
@@ -39,6 +40,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Caixa',
         icon: 'caixa',
         permissions: ['cash.open', 'cash.close', 'cash.withdraw', 'cash.supply'],
+      },
+      {
+        href: '/vendas',
+        label: 'Vendas',
+        icon: 'vendas',
+        permissions: ['reports.view'],
       },
     ],
   },
