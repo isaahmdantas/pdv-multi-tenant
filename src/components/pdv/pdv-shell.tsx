@@ -2,14 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertCircleIcon, CheckCircle2Icon, XIcon } from 'lucide-react'
+import { AlertCircleIcon, CheckCircle2Icon, EraserIcon, PauseIcon, XIcon } from 'lucide-react'
 import Link from 'next/link'
 import { formatBRL } from '@/lib/format'
+import { Button } from '@/components/ui/button'
 import { PdvHeader } from '@/components/pdv/pdv-header'
 import { ProductSearch } from '@/components/pdv/product-search'
 import { Cart } from '@/components/pdv/cart'
 import { CustomerSelector } from '@/components/pdv/customer-selector'
 import { PaymentPanel } from '@/components/pdv/payment-panel'
+import { SuspendedSales } from '@/components/pdv/suspended-sales'
 import {
   resolvePayments,
   round2,
@@ -17,6 +19,7 @@ import {
   type PaymentMethodCode,
   type PdvCustomer,
   type PdvProduct,
+  type SuspendedSale,
 } from '@/components/pdv/types'
 
 interface PdvShellProps {
@@ -49,11 +52,43 @@ export function PdvShell({ store, operatorName, openSession, products, customers
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [completed, setCompleted] = useState<{ id: string; total: number; change: number } | null>(null)
+  const [suspended, setSuspended] = useState<SuspendedSale[]>([])
+  const [suspending, setSuspending] = useState(false)
+  const [busySuspendedId, setBusySuspendedId] = useState<string | null>(null)
 
   const cartRef = useRef<CartItem[]>(cart)
   useEffect(() => {
     cartRef.current = cart
   }, [cart])
+
+  async function refreshSuspended() {
+    try {
+      const res = await fetch('/api/v1/sales/suspended')
+      if (!res.ok) return
+      const data = await res.json()
+      setSuspended((data.sales as SuspendedSale[]) ?? [])
+    } catch {
+      // painel apenas de conveniência: falha silenciosa
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const res = await fetch('/api/v1/sales/suspended')
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        setSuspended((data.sales as SuspendedSale[]) ?? [])
+      } catch {
+        // painel apenas de conveniência: falha silenciosa
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const subtotal = round2(cart.reduce((acc, item) => acc + item.total, 0))
   const discount = round2(Math.max(0, Number(discountInput.replace(',', '.')) || 0))
@@ -229,6 +264,118 @@ export function PdvShell({ store, operatorName, openSession, products, customers
     }
   }
 
+  async function suspendSale() {
+    const items = cartRef.current
+    if (items.length === 0 || suspending) return
+    setSuspending(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/v1/sales/suspend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeId: store?.id,
+          customerId: customerId ?? undefined,
+          discount: discount > 0 ? String(discount) : '0',
+          items: items.map((item) => ({
+            productId: item.productId,
+            quantity: String(item.quantity),
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error?.message ?? 'Erro ao suspender a venda.')
+        return
+      }
+      setCart([])
+      setCustomerId(null)
+      setDiscountInput('')
+      clearPayments()
+      void refreshSuspended()
+    } catch {
+      setError('Erro de conexão ao suspender a venda.')
+    } finally {
+      setSuspending(false)
+    }
+  }
+
+  async function recoverSuspended(id: string) {
+    if (busySuspendedId !== null) return
+    if (cartRef.current.length > 0) {
+      setError('Esvazie ou finalize o carrinho atual antes de retomar uma venda suspensa.')
+      return
+    }
+    setBusySuspendedId(id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/v1/sales/${id}/recover`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error?.message ?? 'Erro ao retomar a venda suspensa.')
+        return
+      }
+      const sale = data.sale as {
+        customerId: string | null
+        discount: string
+        items: Array<{
+          productId: string
+          name: string
+          sku: string | null
+          quantity: string
+          unitPrice: string
+          discount: string
+          total: string
+          priceTableId: string | null
+          promotionId: string | null
+        }>
+      }
+      const nextCart: CartItem[] = sale.items.map((it) => ({
+        productId: it.productId,
+        name: it.name,
+        sku: it.sku,
+        quantity: Number(it.quantity),
+        unitPrice: Number(it.unitPrice),
+        itemDiscount: Number(it.discount),
+        total: Number(it.total),
+        priceTableId: it.priceTableId,
+        promotionId: it.promotionId,
+        appliedRule: null,
+        resolving: true,
+      }))
+      setCustomerId(sale.customerId ?? null)
+      setDiscountInput(Number(sale.discount) > 0 ? String(Number(sale.discount)) : '')
+      setCart(nextCart)
+      for (const item of nextCart) {
+        void syncPrice(item.productId, item.quantity, sale.customerId ?? null)
+      }
+      void refreshSuspended()
+    } catch {
+      setError('Erro de conexão ao retomar a venda suspensa.')
+    } finally {
+      setBusySuspendedId(null)
+    }
+  }
+
+  async function discardSuspended(id: string) {
+    if (busySuspendedId !== null) return
+    setBusySuspendedId(id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/v1/sales/${id}/discard`, { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError(data?.error?.message ?? 'Erro ao descartar a venda suspensa.')
+        return
+      }
+      void refreshSuspended()
+    } catch {
+      setError('Erro de conexão ao descartar a venda suspensa.')
+    } finally {
+      setBusySuspendedId(null)
+    }
+  }
+
   return (
     <div className="flex h-dvh flex-col bg-background">
       <PdvHeader
@@ -251,6 +398,33 @@ export function PdvShell({ store, operatorName, openSession, products, customers
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[1fr_380px]">
         <div className="flex min-h-0 flex-col gap-4">
           <ProductSearch products={products} onAdd={addProduct} />
+
+          {cart.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={suspendSale}
+                disabled={suspending}
+              >
+                <PauseIcon className="mr-1.5 size-4" aria-hidden="true" />
+                {suspending ? 'Suspender…' : 'Suspender venda'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCart([])
+                  setCustomerId(null)
+                  setDiscountInput('')
+                  clearPayments()
+                }}
+              >
+                <EraserIcon className="mr-1.5 size-4" aria-hidden="true" />
+                Esvaziar
+              </Button>
+            </div>
+          ) : null}
 
           {error ? (
             <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -291,6 +465,12 @@ export function PdvShell({ store, operatorName, openSession, products, customers
         </div>
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+          <SuspendedSales
+            sales={suspended}
+            busyId={busySuspendedId}
+            onRecover={recoverSuspended}
+            onDiscard={discardSuspended}
+          />
           <CustomerSelector customers={customers} value={customerId} onSelect={selectCustomer} />
           <PaymentPanel
             totals={{ subtotal, discount, total }}

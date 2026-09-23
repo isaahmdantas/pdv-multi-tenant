@@ -57,6 +57,19 @@ export const refundSaleSchema = z.object({
     .optional(),
 });
 
+export const suspendSaleSchema = z
+  .object({
+    storeId: z.string().cuid2().optional(),
+    customerId: z.string().cuid2().optional(),
+    discount: moneySchema.default('0'),
+    items: z.array(saleItemSchema).min(1, 'Informe ao menos um item'),
+  })
+  .refine((v) => {
+    const ids = v.items.map((i) => i.productId);
+    return new Set(ids).size === ids.length;
+  }, 'Itens duplicados não são permitidos');
+
+export type SuspendSaleInput = z.input<typeof suspendSaleSchema>;
 export type SaleItemInput = z.input<typeof saleItemSchema>;
 export type SalePaymentInput = z.input<typeof salePaymentSchema>;
 export type CreateSaleInput = z.input<typeof createSaleSchema>;

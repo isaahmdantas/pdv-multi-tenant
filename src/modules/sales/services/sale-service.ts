@@ -1,7 +1,8 @@
 import { PrismaClient, Prisma } from '@/generated/prisma/client';
 import type { TenantContext } from '@/modules/tenant/domain/tenant-context';
-import type { CreateSaleInput, RefundSaleInput } from '@/modules/sales/schemas';
-import { SaleRepository, type SaleQueryOpts } from '@/modules/sales/repositories/sale-repository';
+import type { CreateSaleInput, RefundSaleInput, SuspendSaleInput } from '@/modules/sales/schemas';
+import { SaleRepository, type SaleQueryOpts, type SaleWithInclude } from '@/modules/sales/repositories/sale-repository';
+import { saleInclude } from '@/modules/sales/repositories/sale-repository';
 import { PricingService } from '@/modules/pricing/services/pricing-service';
 import { StockBalanceRepository } from '@/modules/inventory/repositories/stock-balance-repository';
 import { AuditService } from '@/modules/audit/services/audit-service';
@@ -105,15 +106,16 @@ export class SaleService {
   private async resolveItems(
     ctx: TenantContext,
     storeId: string,
-    input: CreateSaleInput,
+    items: CreateSaleInput['items'],
+    customerId?: string | null,
   ): Promise<ResolvedItem[]> {
     const resolved: ResolvedItem[] = [];
-    for (const item of input.items) {
+    for (const item of items) {
       const pricing = await this.pricing.resolve({
         tenantId: ctx.tenantId,
         storeId,
         productId: item.productId,
-        customerId: input.customerId ?? null,
+        customerId: customerId ?? null,
         quantity: Number(item.quantity),
       });
 
@@ -146,7 +148,7 @@ export class SaleService {
     const session = await this.validateCashSession(ctx, input.cashSessionId, storeId);
     await this.validateCustomer(ctx, input.customerId);
 
-    const items = await this.resolveItems(ctx, storeId, input);
+    const items = await this.resolveItems(ctx, storeId, input.items, input.customerId);
     const subtotal = items.reduce((acc, it) => acc.add(it.total), toDecimal(0));
     const discount = toDecimal(input.discount ?? '0');
     if (discount.gt(subtotal)) {
@@ -286,6 +288,114 @@ export class SaleService {
     }
   }
 
+  /**
+   * F11-10 — Suspende a venda corrente sem movimentar estoque/caixa.
+   * Cria Sale status SUSPENDED apenas com itens (preços congelados pelo
+   * PricingService) e cliente/desconto. Não cria CashMovement nem StockMovement:
+   * o estoque só é dado baixa quando a venda for recuperada e finalizada.
+   */
+  async suspend(
+    ctx: TenantContext,
+    input: SuspendSaleInput,
+    meta?: { ip?: string; device?: string },
+  ) {
+    const storeId = await this.validateStore(ctx, input.storeId);
+    await this.validateCustomer(ctx, input.customerId);
+
+    const items = await this.resolveItems(ctx, storeId, input.items, input.customerId);
+    const subtotal = items.reduce((acc, it) => acc.add(it.total), toDecimal(0));
+    const discount = toDecimal(input.discount ?? '0');
+    if (discount.gt(subtotal)) {
+      throw badRequest('Desconto maior que o subtotal da venda', 'INVALID_DISCOUNT');
+    }
+    const total = subtotal.sub(discount);
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.create({
+        data: {
+          tenantId: ctx.tenantId,
+          storeId,
+          operatorId: ctx.userId,
+          customerId: input.customerId ?? null,
+          status: 'SUSPENDED',
+          subtotal,
+          discount,
+          total,
+          items: {
+            create: items.map((it) => ({
+              tenantId: ctx.tenantId,
+              productId: it.productId,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              discount: it.discount,
+              total: it.total,
+              priceTableId: it.priceTableId ?? null,
+              promotionId: it.promotionId ?? null,
+            })),
+          },
+        },
+      });
+
+      await new AuditService(tx).log({
+        ctx,
+        action: 'SALE_SUSPENDED',
+        entity: 'Sale',
+        entityId: sale.id,
+        after: {
+          storeId,
+          customerId: input.customerId ?? null,
+          subtotal,
+          discount,
+          total,
+          items: items.map((it) => ({
+            productId: it.productId,
+            quantity: it.quantity.toString(),
+            unitPrice: it.unitPrice.toString(),
+            total: it.total.toString(),
+          })),
+        },
+        ip: meta?.ip,
+        device: meta?.device,
+      });
+
+      return sale;
+    });
+
+    const full = await this.repo(ctx).findById(created.id);
+    if (!full) throw notFound('Venda não encontrada', 'SALE_NOT_FOUND');
+    return full;
+  }
+
+  /**
+   * F11-11 — Recupera uma venda suspensa para o carrinho. Devolve a venda com
+   * itens e remove o rascunho SUSPENDED (o carrinho passa a viver no cliente).
+   */
+  async recover(ctx: TenantContext, id: string): Promise<SaleWithInclude> {
+    return this.consumeSuspended(ctx, id);
+  }
+
+  /**
+   * F11-11 — Descarta uma venda suspensa (rascunho) sem efeitos de estoque/caixa.
+   */
+  async discard(ctx: TenantContext, id: string) {
+    await this.consumeSuspended(ctx, id);
+    return true;
+  }
+
+  private async consumeSuspended(ctx: TenantContext, id: string): Promise<SaleWithInclude> {
+    const sale = await this.prisma.$transaction(async (tx) => {
+      const found = await tx.sale.findFirst({
+        where: { tenantId: ctx.tenantId, id, status: 'SUSPENDED' },
+        include: saleInclude,
+      });
+      if (!found) throw conflict('Venda não está suspensa', 'SALE_NOT_SUSPENDED');
+      await tx.saleItem.deleteMany({ where: { saleId: id } });
+      await tx.sale.deleteMany({ where: { id, tenantId: ctx.tenantId, status: 'SUSPENDED' } });
+      return found;
+    });
+    return sale;
+  }
+
   async cancel(
     ctx: TenantContext,
     id: string,
@@ -294,8 +404,8 @@ export class SaleService {
     const repo = this.repo(ctx);
     const existing = await repo.findById(id);
     if (!existing) throw notFound('Venda não encontrada', 'SALE_NOT_FOUND');
-    if (existing.status === 'CANCELLED') {
-      throw conflict('Venda já cancelada', 'SALE_NOT_CANCELLABLE');
+    if (existing.status !== 'COMPLETED') {
+      throw conflict('Apenas vendas concluídas podem ser canceladas', 'SALE_NOT_CANCELLABLE');
     }
 
     const balanceRepo = new StockBalanceRepository(this.prisma, ctx);

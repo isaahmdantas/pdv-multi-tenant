@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { SalesHistoryFilters } from "@/components/sales/sales-history-filters";
 import { RefundSaleButton } from "@/components/sales/refund-sale-button";
+import { CancelSaleButton } from "@/components/sales/cancel-sale-button";
 import { formatBRL, formatDateTime } from "@/lib/format";
 import { paymentLabel } from "@/components/pdv/types";
 
@@ -60,7 +61,11 @@ export default async function VendasPage({
   const sp = await searchParams;
   const rawStatus = typeof sp.status === "string" ? sp.status : "";
   const status: SaleStatusQuery =
-    rawStatus === "COMPLETED" || rawStatus === "CANCELLED" ? rawStatus : "";
+    rawStatus === "COMPLETED" ||
+    rawStatus === "CANCELLED" ||
+    rawStatus === "SUSPENDED"
+      ? rawStatus
+      : "";
   const from = typeof sp.from === "string" ? sp.from : "";
   const to = typeof sp.to === "string" ? sp.to : "";
 
@@ -98,6 +103,7 @@ export default async function VendasPage({
   );
 
   const canRefund = user.permissions.includes("sales.refund");
+  const canCancel = user.permissions.includes("sales.cancel");
 
   return (
     <PageContainer>
@@ -146,7 +152,9 @@ export default async function VendasPage({
                   <TableHead>Pagamento</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Status</TableHead>
-                  {canRefund ? <TableHead className="text-right">Ações</TableHead> : null}
+                  {canRefund || canCancel ? (
+                    <TableHead className="text-right">Ações</TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -223,12 +231,16 @@ export default async function VendasPage({
                             variant={
                               sale.status === "COMPLETED"
                                 ? "secondary"
-                                : "destructive"
+                                : sale.status === "SUSPENDED"
+                                  ? "outline"
+                                  : "destructive"
                             }
                           >
                             {sale.status === "COMPLETED"
                               ? "Concluída"
-                              : "Cancelada"}
+                              : sale.status === "SUSPENDED"
+                                ? "Suspensa"
+                                : "Cancelada"}
                           </Badge>
                           {Number(sale.refundedTotal) > 0 ? (
                             <Badge variant="outline" className="text-rose-700">
@@ -240,23 +252,29 @@ export default async function VendasPage({
                           ) : null}
                         </div>
                       </TableCell>
-                      {canRefund ? (
+                      {canRefund || canCancel ? (
                         <TableCell className="text-right">
-                          {sale.status === "COMPLETED" &&
-                          Number(sale.refundedTotal) <
-                            Number(sale.total) ? (
-                            <RefundSaleButton
-                              saleId={sale.id}
-                              total={Number(sale.total)}
-                              refundedTotal={Number(sale.refundedTotal)}
-                              items={sale.items.map((it) => ({
-                                id: it.id,
-                                productName: it.product.name,
-                                quantity: Number(it.quantity),
-                                refundedQuantity: Number(it.refundedQuantity),
-                              }))}
-                            />
-                          ) : null}
+                          <div className="flex items-center justify-end gap-2">
+                            {canRefund &&
+                            sale.status === "COMPLETED" &&
+                            Number(sale.refundedTotal) <
+                              Number(sale.total) ? (
+                              <RefundSaleButton
+                                saleId={sale.id}
+                                total={Number(sale.total)}
+                                refundedTotal={Number(sale.refundedTotal)}
+                                items={sale.items.map((it) => ({
+                                  id: it.id,
+                                  productName: it.product.name,
+                                  quantity: Number(it.quantity),
+                                  refundedQuantity: Number(it.refundedQuantity),
+                                }))}
+                              />
+                            ) : null}
+                            {canCancel && sale.status === "COMPLETED" ? (
+                              <CancelSaleButton saleId={sale.id} />
+                            ) : null}
+                          </div>
                         </TableCell>
                       ) : null}
                     </TableRow>

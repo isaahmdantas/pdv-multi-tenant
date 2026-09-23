@@ -32,6 +32,27 @@ export interface PdvTotals {
   total: number
 }
 
+export interface SuspendedSale {
+  id: string
+  createdAt: string
+  total: number
+  discount: number
+  customerId: string | null
+  customerName: string | null
+  items: {
+    id: string
+    productId: string
+    name: string
+    sku: string | null
+    quantity: number
+    unitPrice: number
+    discount: number
+    total: number
+    priceTableId: string | null
+    promotionId: string | null
+  }[]
+}
+
 export const PAYMENT_METHODS = [
   { code: 'CASH', label: 'Dinheiro' },
   { code: 'PIX', label: 'Pix' },

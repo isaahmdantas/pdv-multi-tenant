@@ -66,6 +66,7 @@ export function SalesHistoryFilters({ status, from, to }: SalesHistoryFiltersPro
             <SelectItem value="ALL">Todas</SelectItem>
             <SelectItem value="COMPLETED">Concluídas</SelectItem>
             <SelectItem value="CANCELLED">Canceladas</SelectItem>
+            <SelectItem value="SUSPENDED">Suspensas</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -654,3 +654,98 @@ describe("Sales F12-07 — estorno total e parcial", () => {
     });
   });
 });
+
+describe("Sales F11-10/11 — suspensão e recuperação", () => {
+  it("suspende venda: cria SUSPENDED com preços, sem estoque/caixa, e audita SALE_SUSPENDED", async () => {
+    const before = await balanceOf(ctxA, productAId);
+    const sale = await saleSvc.suspend(ctxA, {
+      items: [{ productId: productAId, quantity: "3" }],
+      customerId: customerAId,
+      discount: "1.00",
+    });
+
+    expect(sale.status).toBe("SUSPENDED");
+    expect(sale.cashSessionId).toBeNull();
+    expect(sale.customerId).toBe(customerAId);
+    expect(sale.items).toHaveLength(1);
+    expect(Number(sale.items[0].unitPrice)).toBeCloseTo(5.45, 2);
+    expect(Number(sale.subtotal)).toBeCloseTo(16.35, 2);
+    expect(Number(sale.discount)).toBeCloseTo(1, 2);
+    expect(Number(sale.total)).toBeCloseTo(15.35, 2);
+    expect(await balanceOf(ctxA, productAId)).toBe(before);
+
+    expect(
+      await db.cashMovement.count({ where: { tenantId: ctxA.tenantId, referenceId: sale.id } }),
+    ).toBe(0);
+    expect(
+      await db.stockMovement.count({ where: { tenantId: ctxA.tenantId, referenceId: sale.id } }),
+    ).toBe(0);
+
+    const logs = await db.auditLog.findMany({
+      where: { tenantId: ctxA.tenantId, action: "SALE_SUSPENDED", entityId: sale.id },
+    });
+    expect(logs).toHaveLength(1);
+  });
+
+  it("recupera venda suspensa com itens e remove o rascunho; segunda recuperação → 409", async () => {
+    const sale = await saleSvc.suspend(ctxA, {
+      items: [{ productId: productAId, quantity: "2" }],
+    });
+
+    const recovered = await saleSvc.recover(ctxA, sale.id);
+    expect(recovered.status).toBe("SUSPENDED");
+    expect(recovered.cashSessionId).toBeNull();
+    expect(recovered.items).toHaveLength(1);
+    expect(recovered.items[0].product.name).toBe("Coca Lata");
+    expect(Number(recovered.items[0].quantity)).toBe(2);
+
+    await expect(saleSvc.recover(ctxA, sale.id)).rejects.toMatchObject({
+      status: 409,
+      code: "SALE_NOT_SUSPENDED",
+    });
+  });
+
+  it("descarta venda suspensa; descartar conclusão → 409 SALE_NOT_SUSPENDED", async () => {
+    const sale = await saleSvc.suspend(ctxA, {
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+    await expect(saleSvc.discard(ctxA, sale.id)).resolves.toBe(true);
+    await expect(saleSvc.discard(ctxA, sale.id)).rejects.toMatchObject({
+      status: 409,
+      code: "SALE_NOT_SUSPENDED",
+    });
+
+    const session = await openSession();
+    const completed = await saleSvc.checkout(ctxA, {
+      cashSessionId: session.id,
+      payments: [{ methodCode: "CASH", amount: "5.45" }],
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+    await expect(saleSvc.discard(ctxA, completed.id)).rejects.toMatchObject({
+      status: 409,
+      code: "SALE_NOT_SUSPENDED",
+    });
+  });
+
+  it("não cancela venda suspensa (cancelar devolveria estoque que nunca saiu)", async () => {
+    const before = await balanceOf(ctxA, productAId);
+    const sale = await saleSvc.suspend(ctxA, {
+      items: [{ productId: productAId, quantity: "5" }],
+    });
+    await expect(saleSvc.cancel(ctxA, sale.id)).rejects.toMatchObject({
+      status: 409,
+      code: "SALE_NOT_CANCELLABLE",
+    });
+    expect(await balanceOf(ctxA, productAId)).toBe(before);
+    await saleSvc.discard(ctxA, sale.id);
+  });
+
+  it("lista vendas suspensas pelo filtro de status", async () => {
+    const s1 = await saleSvc.suspend(ctxA, {
+      items: [{ productId: productAId, quantity: "1" }],
+    });
+    const rows = await saleSvc.list(ctxA, { status: "SUSPENDED" });
+    expect(rows.some((r) => r.id === s1.id)).toBe(true);
+    await saleSvc.discard(ctxA, s1.id);
+  });
+});
